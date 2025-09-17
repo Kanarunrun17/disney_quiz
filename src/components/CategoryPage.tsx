@@ -1,19 +1,21 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { triviaData } from './data';
+import { trivias } from '../data/data';
 
 const CategoryPage = () => {
+  const categories = Array.from(new Set(trivias.map((trivia) => trivia.category)));
+
   return (
     <div className="container mt-5">
       <h1 className="mb-4">カテゴリを選択</h1>
       <div className="list-group">
-        {Object.keys(triviaData).map((key) => (
+        {categories.map((category) => (
           <Link
-            key={key}
-            to={`/trivia/${key}`}
+            key={category}
+            to={`/category/${category}`}
             className="list-group-item list-group-item-action"
           >
-            {triviaData[key as keyof typeof triviaData].title}
+            {category}
           </Link>
         ))}
       </div>
