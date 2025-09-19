@@ -4,6 +4,7 @@ import HomePage from './HomePage';
 import CategoryPage from './CategoryPage';
 import TriviaPage from './TriviaPage';
 import CategoryTriviasPage from './CategoryTriviasPage';
+import './Responsive.css';
 
 function App() {
   return (

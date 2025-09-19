@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { trivias } from '../data/data';
+import { trivias } from '../data/data_2022';
 
 const CategoryPage = () => {
   const categories = Array.from(new Set(trivias.map((trivia) => trivia.category)));

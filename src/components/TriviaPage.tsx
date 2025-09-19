@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { trivias } from '../data/data';
+import { trivias } from '../data/data_2022';
 
 const TriviaPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +24,7 @@ const TriviaPage = () => {
         <img src={trivia.photo} alt={trivia.title} className="img-fluid mb-3" />
       )}
       <p style={{ whiteSpace: 'pre-wrap' }}>{trivia.body}</p>
+      <p className="text-end text-muted">{trivia.date}</p>
       <Link to={`/category/${trivia.category}`} className="btn btn-secondary mt-4 me-2">
         {trivia.category} の他のトリビアを見る
       </Link>

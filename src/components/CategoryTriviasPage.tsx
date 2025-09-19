@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { trivias } from '../data/data';
+import { trivias } from '../data/data_2022';
 
 const CategoryTriviasPage = () => {
   const { categoryName } = useParams<{ categoryName: string }>();
