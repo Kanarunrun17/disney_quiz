@@ -1,8 +1,8 @@
 {
-  "name": "disney_trivia",
+  "name": "disney_quiz",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://Kanarunrun17.github.io/disney_quiz",
+  "homepage": "https://kanarunrun17.github.io/disney_quiz/",
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.8.0",
