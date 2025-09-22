@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { trivias } from '../data/data_2022';
+import { allTrivias } from '../data/all_data';
 
 const CategoryPage = () => {
-  const categories = Array.from(new Set(trivias.map((trivia) => trivia.category)));
+  const categories = Array.from(new Set(allTrivias.map((trivia) => trivia.category)));
 
   return (
     <div className="container mt-5">

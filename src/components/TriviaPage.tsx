@@ -1,12 +1,12 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { trivias } from '../data/data_2022';
+import { allTrivias } from '../data/all_data';
 
 const TriviaPage = () => {
   const { id } = useParams<{ id: string }>();
   const triviaId = parseInt(id || '', 10);
 
-  const trivia = trivias.find((t) => t.id === triviaId);
+  const trivia = allTrivias.find((t) => t.id === triviaId);
 
   if (!trivia) {
     return (

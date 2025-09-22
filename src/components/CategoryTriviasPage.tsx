@@ -1,11 +1,11 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { trivias } from '../data/data_2022';
+import { allTrivias } from '../data/all_data';
 
 const CategoryTriviasPage = () => {
   const { categoryName } = useParams<{ categoryName: string }>();
 
-  const filteredTrivias = trivias.filter((trivia) => trivia.category === categoryName);
+  const filteredTrivias = allTrivias.filter((trivia) => trivia.category === categoryName);
 
   if (!categoryName || filteredTrivias.length === 0) {
     return (
