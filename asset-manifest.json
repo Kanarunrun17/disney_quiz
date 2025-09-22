@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/disney_quiz/static/css/main.9657c0f2.css",
-    "main.js": "/disney_quiz/static/js/main.9f4445db.js",
+    "main.js": "/disney_quiz/static/js/main.c518caa2.js",
     "index.html": "/disney_quiz/index.html",
     "main.9657c0f2.css.map": "/disney_quiz/static/css/main.9657c0f2.css.map",
-    "main.9f4445db.js.map": "/disney_quiz/static/js/main.9f4445db.js.map"
+    "main.c518caa2.js.map": "/disney_quiz/static/js/main.c518caa2.js.map"
   },
   "entrypoints": [
     "static/css/main.9657c0f2.css",
-    "static/js/main.9f4445db.js"
+    "static/js/main.c518caa2.js"
   ]
 }
