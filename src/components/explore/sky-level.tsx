@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
 import type { Constellation, ExploreModel } from '@/lib/explore-types';
+import { Skyline } from './skyline';
 
 // L0 空：カテゴリの星座。星＝記事、線＝類似。ラベルは固定の 13px、位置と星だけが --u で拡大縮小する
 
@@ -28,6 +29,7 @@ function ConstellationArt({ c, model }: { c: Constellation; model: ExploreModel 
             y1={a.y}
             x2={b.x}
             y2={b.y}
+            pathLength={1}
             className={e.w > 0 ? 'constellation-edge' : 'constellation-edge constellation-edge-faint'}
           />
         );
@@ -93,11 +95,20 @@ export function SkyLevel({
                 <span className="constellation-count" aria-label={`${c.stars.length}冊`}>
                   {c.stars.length}
                 </span>
+                {/* PC のホバーで出る、新しい本 2 冊のプレビュー（星は新しい順） */}
+                <span className="constellation-preview" aria-hidden="true">
+                  {c.stars.slice(0, 2).map((s) => (
+                    <span key={s.slug} className="constellation-preview-item">
+                      {model.articles[s.slug]?.title}
+                    </span>
+                  ))}
+                </span>
               </span>
             </Link>
           </li>
         ))}
       </ul>
+      <Skyline />
     </section>
   );
 }

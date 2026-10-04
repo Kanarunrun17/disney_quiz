@@ -6,8 +6,9 @@
 .explore {
   --header-h: 56px;
   --dock-h: calc(64px + env(safe-area-inset-bottom, 0px));
-  --u: min(calc(100vw / 390), calc((100vh - var(--header-h) - var(--dock-h) - 24px) / 560));
-  --u: min(calc(100vw / 390), calc((100dvh - var(--header-h) - var(--dock-h) - 24px) / 560));
+  --skyline-h: clamp(72px, 15vh, 130px);
+  --u: min(calc(100vw / 390), calc((100vh - var(--header-h) - var(--dock-h) - var(--skyline-h) - 16px) / 560));
+  --u: min(calc(100vw / 390), calc((100dvh - var(--header-h) - var(--dock-h) - var(--skyline-h) - 16px) / 560));
   position: fixed;
   inset: 0;
   display: flex;
@@ -15,6 +16,41 @@
   background: var(--sky-900);
   color: var(--paper);
   font-family: var(--font-sans);
+}
+/* 背の低い画面ではスカイラインを畳み、星座のラベルが重ならない大きさを優先する */
+@media (max-height: 719px) {
+  .explore {
+    --skyline-h: 0px;
+  }
+  .skyline {
+    display: none;
+  }
+}
+.explore-header,
+.explore-stage,
+.dock {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- 背景の星・グレイン ---- */
+.stars {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+.grain {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: soft-light;
 }
 
 /* ディープリンクで開いたとき、hydration までステージを隠して L0 のちらつきを防ぐ */
@@ -43,11 +79,20 @@ html[data-explore-hash] .explore:not([data-hydrated]) .explore-stage {
   letter-spacing: 0.04em;
   margin: 0;
 }
+.explore-brand {
+  white-space: nowrap;
+}
 .explore-tagline {
   margin: 0;
   font-size: 13px;
   color: var(--sky-muted);
   white-space: nowrap;
+}
+/* 幅の狭い端末（iPhone SE など）ではサイト名を優先し、一行の案内は出さない */
+@media (max-width: 399px) {
+  .explore-tagline {
+    display: none;
+  }
 }
 
 /* ---- ステージとレベル ---- */
@@ -73,16 +118,76 @@ html[data-explore-hash] .explore:not([data-hydrated]) .explore-stage {
 
 /* ---- L0 空 ---- */
 .explore-sky {
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .sky-field {
   position: relative;
   width: calc(var(--box-w) * var(--u));
   height: calc(var(--box-h) * var(--u));
-  margin: 0;
+  margin: auto 0;
   padding: 0;
   list-style: none;
+  /* PC のポインタ視差（--px / --py は Explorer が -1〜1 で更新） */
+  transform: translate(calc(var(--px, 0) * 6px), calc(var(--py, 0) * 6px));
+  transition: transform 400ms ease-out;
+}
+
+/* スカイライン（紙切り絵の 3 層） */
+.skyline {
+  display: block;
+  width: 100%;
+  height: var(--skyline-h);
+  flex-shrink: 0;
+}
+.skyline-back {
+  fill: var(--sky-700);
+}
+.skyline-mid {
+  fill: var(--sky-500);
+}
+.skyline-front {
+  fill: var(--sky-900);
+}
+.skyline-face {
+  fill: var(--paper);
+  opacity: 0.35;
+}
+.window {
+  opacity: 0.9;
+}
+
+/* 初回訪問の演出：窓が 7 群で順に灯り、星座線が描かれる（印は page.tsx のインラインスクリプトが付ける） */
+html[data-explore-first] .window {
+  animation: window-on 240ms var(--ease-enter) both;
+  animation-delay: calc(120ms + var(--g, 0) * 40ms);
+}
+html[data-explore-first] .constellation-edge {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw-edge 600ms var(--ease-enter) 200ms both;
+}
+@keyframes window-on {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes draw-edge {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-explore-first] .window,
+  html[data-explore-first] .constellation-edge {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .sky-field {
+    transition: none;
+    transform: none;
+  }
 }
 .sky-slot {
   position: absolute;
@@ -131,12 +236,53 @@ html[data-explore-hash] .explore:not([data-hydrated]) .explore-stage {
 .star-new .star-core {
   fill: var(--paper);
 }
+.sky-slot:hover,
+.sky-slot:focus-within {
+  z-index: 2;
+}
 .constellation-label {
+  position: relative;
   display: flex;
   align-items: baseline;
   gap: 6px;
   width: max-content;
   margin-top: 2px;
+  white-space: nowrap;
+}
+/* PC のホバーで出る新しい本 2 冊のプレビュー（260ms 待ってから） */
+.constellation-preview {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .constellation-preview {
+    display: block;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 220px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--sky-700);
+    color: var(--sky-muted);
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: start;
+    box-shadow: 0 1px 0 rgb(0 0 0 / 0.25);
+    opacity: 0;
+    transition: opacity 120ms ease-out 260ms;
+    pointer-events: none;
+  }
+  .constellation:hover .constellation-preview,
+  .constellation:focus-visible .constellation-preview {
+    opacity: 1;
+  }
+}
+.constellation-preview-item {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .constellation-name {
@@ -289,6 +435,8 @@ html[data-explore-hash] .explore:not([data-hydrated]) .explore-stage {
 }
 .cover {
   box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -302,6 +450,22 @@ html[data-explore-hash] .explore:not([data-hydrated]) .explore-stage {
   border-radius: 4px;
   box-shadow: 0 1px 0 rgb(0 0 0 / 0.25);
   transition: transform var(--dur-micro) ease-out;
+}
+/* 表紙の右上の透かし（カテゴリの幾何形） */
+.cover-motif {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 96px;
+  height: 96px;
+  color: rgb(11 18 48 / 0.1);
+  pointer-events: none;
+}
+.cover-motif .motif-hole {
+  fill: var(--c);
+}
+.cover > :not(.cover-motif) {
+  position: relative;
 }
 .cover:hover {
   transform: translateY(-2px);

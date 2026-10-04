@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ViewTransition, type CSSProperties } from 'react';
 import type { ExploreModel } from '@/lib/explore-types';
+import { Motif } from './motifs';
 import type { View } from './use-explore-state';
 
 // L2 手に取る：1 冊の表紙と、つながる本（最大 3 冊）。
@@ -49,6 +50,7 @@ export function BookLevel({
 
           <ViewTransition name={`book-${article.slug}`} share="book-open" default="none">
             <Link href={article.href} className="cover" data-focus-id={`cover:${article.slug}`} transitionTypes={['book-open']}>
+              <Motif icon={constellation.icon} className="cover-motif" />
               <span className="cover-chip">{constellation.name}</span>
               <span className="cover-title">{article.title}</span>
               <span className="cover-desc">{article.description}</span>

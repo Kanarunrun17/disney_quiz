@@ -1,9 +1,11 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useRef } from 'react';
 import type { ExploreModel } from '@/lib/explore-types';
 import { BookLevel } from './book-level';
 import { Dock } from './dock';
+import { Grain } from './grain';
 import { ShelfLevel } from './shelf-level';
 import { SkyLevel } from './sky-level';
 import { useExploreState } from './use-explore-state';
@@ -11,6 +13,9 @@ import { paneKeyOf, useLevelTransition } from './use-level-transition';
 import './explore.css';
 
 // 探索ホーム全体。サーバーで全記事リンクを含む HTML として描画され、クライアントでレベルの切り替えだけを行う。
+
+// 背景の星は装飾なのでサーバーでは描かず、別チャンクで後から読み込む
+const Stars = dynamic(() => import('./stars'), { ssr: false });
 
 export function Explorer({ model, siteName }: { model: ExploreModel; siteName: string }) {
   const { view, exiting, hydrated, descend, replace, ascendTo, settle } = useExploreState(model);
@@ -48,11 +53,42 @@ export function Explorer({ model, siteName }: { model: ExploreModel; siteName: s
     }
   }, [view, hydrated]);
 
+  // PC のみ：ポインタの位置で空がわずかに（±6px）動く
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    if (!window.matchMedia('(pointer: fine)').matches || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let raf = 0;
+    const onMove = (e: PointerEvent) => {
+      const r = stage.getBoundingClientRect();
+      const px = ((e.clientX - r.left) / r.width - 0.5) * 2;
+      const py = ((e.clientY - r.top) / r.height - 0.5) * 2;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        stage.style.setProperty('--px', px.toFixed(3));
+        stage.style.setProperty('--py', py.toFixed(3));
+      });
+    };
+    const onLeave = () => {
+      stage.style.setProperty('--px', '0');
+      stage.style.setProperty('--py', '0');
+    };
+    stage.addEventListener('pointermove', onMove);
+    stage.addEventListener('pointerleave', onLeave);
+    return () => {
+      cancelAnimationFrame(raf);
+      stage.removeEventListener('pointermove', onMove);
+      stage.removeEventListener('pointerleave', onLeave);
+    };
+  }, []);
+
   const isExiting = (key: string) => !!exiting && paneKeyOf(exiting) !== paneKeyOf(view) && paneKeyOf(exiting) === key;
   const bookView = view.level === 2 ? view : exiting?.level === 2 ? exiting : null;
 
   return (
     <div className="explore theme-night" data-level={view.level} data-hydrated={hydrated || undefined}>
+      <Stars />
       <header className="explore-header">
         <h1 className="explore-brand">{siteName}</h1>
         <p className="explore-tagline">夜空の星座から、一冊をえらぶ</p>
@@ -92,6 +128,7 @@ export function Explorer({ model, siteName }: { model: ExploreModel; siteName: s
       </main>
 
       <Dock model={model} view={view} onAscend={ascendTo} />
+      <Grain />
     </div>
   );
 }

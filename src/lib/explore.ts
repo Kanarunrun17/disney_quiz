@@ -276,8 +276,7 @@ const relatedOf = (article: Article, all: Article[]): RelatedBook[] =>
 
 // ---- モデル ----
 
-export const buildExploreModel = (): ExploreModel => {
-  const all = getArticles();
+export const buildExploreModel = (all: Article[] = getArticles()): ExploreModel => {
   const groups = new Map<string, Article[]>();
   for (const a of all) groups.set(a.category, [...(groups.get(a.category) ?? []), a]);
 
