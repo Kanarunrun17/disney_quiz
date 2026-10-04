@@ -27,7 +27,8 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "deploy": "gh-pages -d build",
+    "content:validate": "tsx scripts/validate-content.ts"
   },
   "eslintConfig": {
     "extends": [
@@ -48,6 +49,12 @@
     ]
   },
   "devDependencies": {
-    "gh-pages": "^6.3.0"
+    "@mdx-js/mdx": "^3.1.1",
+    "gh-pages": "^6.3.0",
+    "gray-matter": "^4.0.3",
+    "remark-breaks": "^4.0.0",
+    "remark-gfm": "^4.0.1",
+    "tsx": "^4.23.15",
+    "zod": "^4.6.5"
   }
 }
