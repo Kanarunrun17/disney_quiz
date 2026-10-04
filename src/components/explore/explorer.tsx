@@ -1,12 +1,13 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import type { ExploreModel } from '@/lib/explore-types';
 import { BookLevel } from './book-level';
 import { Dock } from './dock';
+import { GalleryLevel } from './gallery-level';
 import { Grain } from './grain';
-import { ShelfLevel } from './shelf-level';
 import { SkyLevel } from './sky-level';
 import { useExploreState } from './use-explore-state';
 import { paneKeyOf, useLevelTransition } from './use-level-transition';
@@ -20,7 +21,7 @@ const Stars = dynamic(() => import('./stars'), { ssr: false });
 export function Explorer({ model, siteName }: { model: ExploreModel; siteName: string }) {
   const { view, exiting, hydrated, descend, replace, ascendTo, settle } = useExploreState(model);
   const stageRef = useRef<HTMLElement>(null);
-  // 戻ったときにフォーカスを返す先（L1 → 星座の categoryId、L2 → 背表紙の slug）
+  // 戻ったときにフォーカスを返す先（L1 → 星座の categoryId、L2 → カードの slug）
   const triggers = useRef<Record<number, string | undefined>>({});
   const prevLevel = useRef(0);
 
@@ -36,7 +37,7 @@ export function Explorer({ model, siteName }: { model: ExploreModel; siteName: s
   }, [view, ascendTo]);
 
   // レベルが変わったらフォーカスを移す。潜ったときは新しいレベルの見出しへ（スクリーンリーダーが
-  // 見出しを読み上げるので、別途の通知は不要）、戻ったときは元の星座／背表紙へ
+  // 見出しを読み上げるので、別途の通知は不要）、戻ったときは元の星座／カードへ
   useEffect(() => {
     if (!hydrated) return;
     const wentUp = view.level < prevLevel.current;
@@ -91,7 +92,11 @@ export function Explorer({ model, siteName }: { model: ExploreModel; siteName: s
       <Stars />
       <header className="explore-header">
         <h1 className="explore-brand">{siteName}</h1>
-        <p className="explore-tagline">夜空の星座から、一冊をえらぶ</p>
+        <Link href="/categories" className="explore-menu" aria-label="一覧で見る" title="一覧で見る">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M5 7h14M5 12h14M5 17h14" />
+          </svg>
+        </Link>
       </header>
 
       <main className="explore-stage" aria-label="記事をさがす" ref={stageRef}>
@@ -105,13 +110,13 @@ export function Explorer({ model, siteName }: { model: ExploreModel; siteName: s
           }}
         />
         {model.sky.constellations.map((c) => (
-          <ShelfLevel
+          <GalleryLevel
             key={c.categoryId}
             model={model}
-            shelf={model.shelves[c.categoryId]}
+            gallery={model.galleries[c.categoryId]}
             constellation={c}
             active={view.level === 1 && view.category === c.categoryId}
-            exiting={isExiting(`shelf:${c.categoryId}`)}
+            exiting={isExiting(`gallery:${c.categoryId}`)}
             onSelect={(slug) => {
               triggers.current[2] = slug;
               descend({ level: 2, category: c.categoryId, slug });

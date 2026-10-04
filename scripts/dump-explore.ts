@@ -13,17 +13,10 @@ for (const c of model.sky.constellations) {
   );
 }
 
-console.log('\n■ 本棚');
-for (const shelf of Object.values(model.shelves)) {
-  const name = model.sky.constellations.find((c) => c.categoryId === shelf.categoryId)?.name;
-  console.log(`  [${name}] shelfBy=${shelf.shelfBy} display=${shelf.display}`);
-  for (const row of shelf.rows) {
-    console.log(`    段「${row.label ?? '（ラベルなし）'}」`);
-    row.lines.forEach((line, i) => {
-      const titles = line.map((s) => `${model.articles[s.slug].title}(${s.width}/${s.height})`).join(' | ');
-      console.log(`      行${i + 1}: ${titles}`);
-    });
-  }
+console.log('\n■ ギャラリー（カードの並び）');
+for (const g of Object.values(model.galleries)) {
+  const name = model.sky.constellations.find((c) => c.categoryId === g.categoryId)?.name;
+  console.log(`  [${name}] ${g.slugs.map((s) => model.articles[s].title).join(' | ')}`);
 }
 
 console.log('\n■ 関連する本（例）');

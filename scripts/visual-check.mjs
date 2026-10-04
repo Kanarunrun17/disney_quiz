@@ -33,6 +33,28 @@ const smallTexts = (page) =>
     return out;
   }, MIN_FONT_PX);
 
+
+// 表示中のギャラリーで、ステージの中央に最も近いカード（輪は回り続けるので force で押す）
+const centerCard = async (page) => {
+  const id = await page.evaluate(() => {
+    const stage = document.querySelector('.explore-gallery:not([hidden]) .gallery-stage').getBoundingClientRect();
+    const cx = stage.left + stage.width / 2;
+    const cy = stage.top + stage.height / 2;
+    let best = null;
+    let bestD = Infinity;
+    for (const el of document.querySelectorAll('.explore-gallery:not([hidden]) .card')) {
+      const r = el.getBoundingClientRect();
+      const d = Math.hypot(r.left + r.width / 2 - cx, r.top + r.height / 2 - cy);
+      if (d < bestD) {
+        bestD = d;
+        best = el.dataset.focusId;
+      }
+    }
+    return best;
+  });
+  return page.locator(`.explore-gallery:not([hidden]) .card[data-focus-id="${id}"]`);
+};
+
 const level = (page) => page.evaluate(() => document.querySelector('.explore')?.dataset.level);
 
 // 星座ラベル同士の重なり（2px 以上）の数
@@ -101,13 +123,24 @@ try {
   await waitLevel(page, 1);
   const hash1 = await page.evaluate(() => location.hash);
   check(/^#[a-z-]+$/.test(hash1), `L1: ハッシュが #category になる (${hash1})`);
-  check((await page.locator('.spine:visible').count()) > 0, 'L1: 背表紙が表示される');
+  check((await page.locator('.explore-gallery:not([hidden]) .card').count()) > 0, 'L1: カードが表示される');
+  // 指で回せる（回した直後のクリックは選択にならない）
+  const before = await page.evaluate(() => document.querySelector('.explore-gallery:not([hidden]) .gallery-ring').style.transform);
+  const box = await page.locator('.explore-gallery:not([hidden]) .gallery-stage').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 80, box.y + box.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+  const after = await page.evaluate(() => document.querySelector('.explore-gallery:not([hidden]) .gallery-ring').style.transform);
+  check(before !== after, 'L1: ドラッグでギャラリーが回る');
+  check((await level(page)) === '1', 'L1: 回した直後にカードが選択されない');
   check(await settled(page), 'L1: 遷移後に動き続けるアニメーションがなく will-change が外れている');
   small = await smallTexts(page);
   check(small.length === 0, `L1: 12px 未満の文字がない ${small.join(', ')}`);
   await page.screenshot({ path: `${OUT}/l1-mobile.png` });
 
-  await page.locator('.spine').first().click();
+  await (await centerCard(page)).click({ force: true });
   await waitLevel(page, 2);
   const hash2 = await page.evaluate(() => location.hash);
   check(/^#[a-z-]+\/[a-z0-9-]+$/.test(hash2), `L2: ハッシュが #category/slug になる (${hash2})`);
@@ -132,7 +165,7 @@ try {
   // 表紙 → 記事ページ → 戻ると L2
   await page.locator('.constellation').first().click();
   await waitLevel(page, 1);
-  await page.locator('.spine').first().click();
+  await (await centerCard(page)).click({ force: true });
   await waitLevel(page, 2);
   const vtSupported = await page.evaluate(() => {
     const original = document.startViewTransition?.bind(document);
@@ -204,7 +237,7 @@ try {
   await page.locator('.constellation').first().click();
   await waitLevel(page, 1);
   await page.screenshot({ path: `${OUT}/l1-desktop.png` });
-  await page.locator('.spine').first().click();
+  await (await centerCard(page)).click({ force: true });
   await waitLevel(page, 2);
   await page.screenshot({ path: `${OUT}/l2-desktop.png` });
   await desktop.close();

@@ -1,11 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import type { CSSProperties } from 'react';
 import type { ExploreModel } from '@/lib/explore-types';
 import type { View } from './use-explore-state';
 
-// 下部ドック：戻る（親指ゾーン）・パンくず・一覧へのリンク
+// 下部ドック：戻る（親指ゾーン）とパンくず
 
 export function Dock({
   model,
@@ -62,11 +61,8 @@ export function Dock({
         )}
       </ol>
 
-      <Link href="/categories" className="dock-list" aria-label="一覧で見る" title="一覧で見る">
-        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M5 7h14M5 12h14M5 17h14" />
-        </svg>
-      </Link>
+      {/* 右側は戻るボタンと同じ幅の余白（パンくずを中央に保つ） */}
+      <span aria-hidden="true" />
     </nav>
   );
 }

@@ -95,14 +95,6 @@ export function SkyLevel({
                 <span className="constellation-count" aria-label={`${c.stars.length}冊`}>
                   {c.stars.length}
                 </span>
-                {/* PC のホバーで出る、新しい本 2 冊のプレビュー（星は新しい順） */}
-                <span className="constellation-preview" aria-hidden="true">
-                  {c.stars.slice(0, 2).map((s) => (
-                    <span key={s.slug} className="constellation-preview-item">
-                      {model.articles[s.slug]?.title}
-                    </span>
-                  ))}
-                </span>
               </span>
             </Link>
           </li>
