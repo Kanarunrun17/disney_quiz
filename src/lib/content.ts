@@ -55,24 +55,25 @@ export const getSeriesArticles = (id: string) =>
     .filter((a) => a.series?.id === id)
     .sort((a, b) => a.series!.order - b.series!.order);
 
+/** 2 記事の類似スコア。同じ場所 3 点、同じ連載 3 点、同じタグ 1 点、同じカテゴリ 0.5 点 */
+export const scoreRelation = (a: Article, b: Article): number => {
+  let s = 0;
+  s += b.places.filter((p) => a.places.includes(p)).length * 3;
+  if (a.series && b.series?.id === a.series.id) s += 3;
+  s += b.tags.filter((t) => a.tags.includes(t)).length;
+  if (b.category === a.category) s += 0.5;
+  return s;
+};
+
 /** 同じ場所・連載・タグ・カテゴリを共有する記事を関連度順に返す */
-export const getRelatedArticles = (article: Article, limit = 4): Article[] => {
-  const score = (other: Article) => {
-    let s = 0;
-    s += other.places.filter((p) => article.places.includes(p)).length * 3;
-    if (article.series && other.series?.id === article.series.id) s += 3;
-    s += other.tags.filter((t) => article.tags.includes(t)).length;
-    if (other.category === article.category) s += 0.5;
-    return s;
-  };
-  return getArticles()
+export const getRelatedArticles = (article: Article, limit = 4): Article[] =>
+  getArticles()
     .filter((a) => a.slug !== article.slug)
-    .map((a) => ({ a, s: score(a) }))
+    .map((a) => ({ a, s: scoreRelation(article, a) }))
     .filter(({ s }) => s >= 1)
     .sort((x, y) => y.s - x.s)
     .slice(0, limit)
     .map(({ a }) => a);
-};
 
 // ---- マスタの参照 ----
 
