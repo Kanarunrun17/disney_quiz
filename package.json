@@ -12,7 +12,8 @@
     "content:validate": "tsx scripts/validate-content.ts",
     "explore:dump": "tsx scripts/dump-explore.ts",
     "check:export": "node scripts/check-export.mjs",
-    "check:visual": "node scripts/visual-check.mjs"
+    "check:visual": "node scripts/visual-check.mjs",
+    "explore:stress": "tsx scripts/stress-explore.ts"
   },
   "dependencies": {
     "@mdx-js/mdx": "^3.1.1",

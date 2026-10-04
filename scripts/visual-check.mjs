@@ -34,6 +34,23 @@ const smallTexts = (page) =>
   }, MIN_FONT_PX);
 
 const level = (page) => page.evaluate(() => document.querySelector('.explore')?.dataset.level);
+
+// 星座ラベル同士の重なり（2px 以上）の数
+const labelOverlaps = (page) =>
+  page.evaluate(() => {
+    const rects = [...document.querySelectorAll('.constellation-label')].map((el) => el.getBoundingClientRect());
+    let n = 0;
+    for (let i = 0; i < rects.length; i++) {
+      for (let j = i + 1; j < rects.length; j++) {
+        const a = rects[i];
+        const b = rects[j];
+        const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (ox > 2 && oy > 2) n++;
+      }
+    }
+    return n;
+  });
 // レベルの切り替えと、入場アニメーションの完了を待つ（スクリーンショットが途中の状態にならないように）
 const waitLevel = async (page, n) => {
   await page.waitForSelector(`.explore[data-level="${n}"][data-hydrated]`, { timeout: 5000 });
@@ -73,6 +90,9 @@ try {
   await waitLevel(page, 0);
   check((await page.locator('.constellation:visible').count()) === 7, 'L0: 星座が 7 つ表示される');
   check((await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)), 'L0: スクロールが発生しない');
+  check((await labelOverlaps(page)) === 0, 'L0: 星座のラベルが重ならない');
+  check(await page.locator('.skyline').isVisible(), 'L0: スカイラインが表示される');
+  check((await page.locator('canvas.stars').count()) === 1, 'L0: 星の canvas がある');
   let small = await smallTexts(page);
   check(small.length === 0, `L0: 12px 未満の文字がない ${small.join(', ')}`);
   await page.screenshot({ path: `${OUT}/l0-mobile.png` });
@@ -161,6 +181,17 @@ try {
   await waitLevel(page, 1);
   check((await page.evaluate(() => document.getAnimations().length)) === 0, 'reduced-motion でアニメーションが動かない');
   await mobile.close();
+
+  // ---- 背の低いスマホ（iPhone SE 相当） ----
+  const short = await browser.newContext({ viewport: { width: 375, height: 667 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  page = await short.newPage();
+  await page.goto(`${BASE}/`);
+  await waitLevel(page, 0);
+  check(await page.locator('.skyline').isHidden(), 'SE: スカイラインを畳む');
+  check((await labelOverlaps(page)) === 0, 'SE: 星座のラベルが重ならない');
+  check((await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)), 'SE: スクロールが発生しない');
+  await page.screenshot({ path: `${OUT}/l0-se.png` });
+  await short.close();
 
   // ---- デスクトップ ----
   const desktop = await browser.newContext({ viewport: { width: 1280, height: 900 } });
