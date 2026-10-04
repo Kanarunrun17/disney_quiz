@@ -6,19 +6,20 @@ import { BookLevel } from './book-level';
 import { Dock } from './dock';
 import { ShelfLevel } from './shelf-level';
 import { SkyLevel } from './sky-level';
-import { useExploreState, type View } from './use-explore-state';
+import { useExploreState } from './use-explore-state';
+import { paneKeyOf, useLevelTransition } from './use-level-transition';
 import './explore.css';
 
 // 探索ホーム全体。サーバーで全記事リンクを含む HTML として描画され、クライアントでレベルの切り替えだけを行う。
 
-const paneKeyOf = (view: View) =>
-  view.level === 0 ? 'sky' : view.level === 1 ? `shelf:${view.category}` : 'book';
-
 export function Explorer({ model, siteName }: { model: ExploreModel; siteName: string }) {
-  const { view, hydrated, descend, replace, ascendTo } = useExploreState(model);
+  const { view, exiting, hydrated, descend, replace, ascendTo, settle } = useExploreState(model);
+  const stageRef = useRef<HTMLElement>(null);
   // 戻ったときにフォーカスを返す先（L1 → 星座の categoryId、L2 → 背表紙の slug）
   const triggers = useRef<Record<number, string | undefined>>({});
   const prevLevel = useRef(0);
+
+  useLevelTransition({ stageRef, view, exiting, settle });
 
   // Esc で一段上がる
   useEffect(() => {
@@ -47,6 +48,9 @@ export function Explorer({ model, siteName }: { model: ExploreModel; siteName: s
     }
   }, [view, hydrated]);
 
+  const isExiting = (key: string) => !!exiting && paneKeyOf(exiting) !== paneKeyOf(view) && paneKeyOf(exiting) === key;
+  const bookView = view.level === 2 ? view : exiting?.level === 2 ? exiting : null;
+
   return (
     <div className="explore theme-night" data-level={view.level} data-hydrated={hydrated || undefined}>
       <header className="explore-header">
@@ -54,10 +58,11 @@ export function Explorer({ model, siteName }: { model: ExploreModel; siteName: s
         <p className="explore-tagline">夜空の星座から、一冊をえらぶ</p>
       </header>
 
-      <main className="explore-stage" aria-label="記事をさがす">
+      <main className="explore-stage" aria-label="記事をさがす" ref={stageRef}>
         <SkyLevel
           model={model}
           active={view.level === 0}
+          exiting={isExiting('sky')}
           onSelect={(categoryId) => {
             triggers.current[1] = categoryId;
             descend({ level: 1, category: categoryId });
@@ -70,6 +75,7 @@ export function Explorer({ model, siteName }: { model: ExploreModel; siteName: s
             shelf={model.shelves[c.categoryId]}
             constellation={c}
             active={view.level === 1 && view.category === c.categoryId}
+            exiting={isExiting(`shelf:${c.categoryId}`)}
             onSelect={(slug) => {
               triggers.current[2] = slug;
               descend({ level: 2, category: c.categoryId, slug });
@@ -78,7 +84,9 @@ export function Explorer({ model, siteName }: { model: ExploreModel; siteName: s
         ))}
         <BookLevel
           model={model}
-          view={view}
+          view={bookView}
+          active={view.level === 2}
+          exiting={isExiting('book')}
           onSwap={(slug, categoryId) => replace({ level: 2, category: categoryId, slug })}
         />
       </main>

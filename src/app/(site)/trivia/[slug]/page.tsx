@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { ViewTransition, type CSSProperties } from 'react';
 import { ArticleList } from '@/components/article-card';
 import { Chip } from '@/components/chip';
 import {
@@ -52,8 +53,11 @@ export default async function TriviaPage({ params }: PageProps<'/trivia/[slug]'>
   const related = getRelatedArticles(article);
 
   return (
+    // 探索ホームの表紙（同じ name）からモーフして開く。直接開いたときは何も動かない（default="none"）
+    <ViewTransition enter={{ 'book-open': 'article-enter', default: 'none' }} default="none">
     <article className="mx-auto max-w-2xl">
-      <header>
+      <ViewTransition name={`book-${article.slug}`} share="book-open" default="none">
+      <header className="article-header" style={{ '--c': category?.color } as CSSProperties}>
         <Link href={`/categories/${article.category}`} className="text-sm font-medium text-accent">
           {category?.name}
         </Link>
@@ -77,6 +81,7 @@ export default async function TriviaPage({ params }: PageProps<'/trivia/[slug]'>
           </ul>
         )}
       </header>
+      </ViewTransition>
 
       {seriesInfo && (
         <nav aria-label="連載" className="mt-8 rounded-2xl border border-border bg-surface p-5">
@@ -124,5 +129,6 @@ export default async function TriviaPage({ params }: PageProps<'/trivia/[slug]'>
         </section>
       )}
     </article>
+    </ViewTransition>
   );
 }

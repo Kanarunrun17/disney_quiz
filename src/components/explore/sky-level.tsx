@@ -48,10 +48,13 @@ function ConstellationArt({ c, model }: { c: Constellation; model: ExploreModel 
 export function SkyLevel({
   model,
   active,
+  exiting,
   onSelect,
 }: {
   model: ExploreModel;
   active: boolean;
+  /** 退場アニメーション中は hidden にせず表示し続ける */
+  exiting: boolean;
   onSelect: (categoryId: string) => void;
 }) {
   const { box, constellations } = model.sky;
@@ -59,7 +62,8 @@ export function SkyLevel({
     <section
       className="explore-pane explore-sky"
       data-pane-key="sky"
-      hidden={!active}
+      data-exiting={exiting || undefined}
+      hidden={!active && !exiting}
       inert={!active}
       aria-labelledby="sky-heading"
       style={{ '--box-w': box.w, '--box-h': box.h } as CSSProperties}
