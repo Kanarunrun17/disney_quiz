@@ -154,9 +154,13 @@ const buildConstellations = (groups: Map<string, Article[]>): Constellation[] =>
 
 // ---- 本棚 ----
 
+// 縦書き 13px は 1 文字およそ 13.5px。高さ 160 の背表紙に 1 列で収まるのは 10 文字まで
+const SPINE_SINGLE_COLUMN_CHARS = 10;
+export const SPINE_MAX_CHARS = SPINE_SINGLE_COLUMN_CHARS * 2;
+
 const spineOf = (a: Article): Spine => ({
   slug: a.slug,
-  width: [...a.title].length <= 11 ? 44 : 88,
+  width: [...a.title].length <= SPINE_SINGLE_COLUMN_CHARS ? 44 : 88,
   height: a.readingMinutes <= 2 ? 160 : a.readingMinutes <= 4 ? 176 : 192,
 });
 
@@ -291,6 +295,7 @@ export const buildExploreModel = (): ExploreModel => {
       readingMinutes: a.readingMinutes,
       parkIds: parkIdsOf(a),
       isNew: newest.includes(a.slug),
+      legacyId: a.legacyId,
     };
   }
 
@@ -351,6 +356,8 @@ export const assertLayout = (model: ExploreModel): void => {
   for (const slug of slugs) {
     const n = shelved.get(slug) ?? 0;
     if (n !== 1) errors.push(`${slug}: 本棚に ${n} 回登場しています（1 回のはず）`);
+    const len = [...model.articles[slug].title].length;
+    if (len > SPINE_MAX_CHARS) errors.push(`${slug}: 題が ${len} 文字で背表紙に収まりません（${SPINE_MAX_CHARS} 文字まで）`);
   }
 
   for (const [slug, books] of Object.entries(model.related)) {

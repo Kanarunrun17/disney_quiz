@@ -31,6 +31,8 @@ export type ArticleNode = {
   readingMinutes: number;
   parkIds: string[];
   isNew: boolean;
+  /** 旧サイトの ID（`#/trivia/<id>` からの転送用） */
+  legacyId?: number;
 };
 
 /** 背表紙。width は題の長さ（11 文字以下 44 / 12 文字以上 88）、height は読了分数（160 / 176 / 192） */
