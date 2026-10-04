@@ -1,31 +1,17 @@
-import { categories, getParkOf, tags as tagMaster, type Category } from '@content';
-import { getArticles, getSeries, scoreRelation, type Article } from '@/lib/content';
-import type {
-  ArticleNode,
-  Constellation,
-  ConstellationEdge,
-  ExploreModel,
-  RelatedBook,
-  Shelf,
-  ShelfBy,
-  ShelfRow,
-  Spine,
-  Star,
-  Vec,
-} from './explore-types';
+import { categories, getParkOf } from '@content';
+import { getArticles, scoreRelation, type Article } from '@/lib/content';
+import type { ArticleNode, Constellation, ConstellationEdge, ExploreModel, Gallery, RelatedBook, Star, Vec } from './explore-types';
 
 // 探索ホームのモデルをビルド時に計算する（サーバー専用。乱数は seed 固定で毎回同じ結果になる）。
-// 数値の根拠は docs/content-model.md と Issue #4 を参照。
+// 数値の根拠は Issue #4 を参照。
 
 export const SKY_BOX = { w: 390, h: 560 } as const;
-export const SHELF_WIDTH = 320; // 1 行に並べられる背表紙の合計幅
 const CONSTELLATION_RADIUS = 48; // タップ領域（96×96 セル）
 const STAR_FIELD_RADIUS = 40; // 星を散らす半径
 const STAR_MIN_DIST = 14;
-const SPINE_GAP = 2;
 const NEWEST_COUNT = 5;
 const RELATED_COUNT = 3;
-const PARK_SHELF_RATIO = 0.6; // この割合以上の記事がパークを持てば、段をパークで分ける
+const PARK_GROUP_RATIO = 0.6; // この割合以上の記事がパークを持てば、パークごとにまとめて並べる
 const SEED = 20260929;
 
 // 2-3-2 のハニカム（7 星座まで）。index 0 が中央＝最大カテゴリ、以降は左上から時計回り
@@ -152,36 +138,7 @@ const buildConstellations = (groups: Map<string, Article[]>): Constellation[] =>
   });
 };
 
-// ---- 本棚 ----
-
-// 縦書き 13px は 1 文字およそ 13.5px。高さ 160 の背表紙に 1 列で収まるのは 10 文字まで
-const SPINE_SINGLE_COLUMN_CHARS = 10;
-export const SPINE_MAX_CHARS = SPINE_SINGLE_COLUMN_CHARS * 2;
-
-const spineOf = (a: Article): Spine => ({
-  slug: a.slug,
-  width: [...a.title].length <= SPINE_SINGLE_COLUMN_CHARS ? 44 : 88,
-  height: a.readingMinutes <= 2 ? 160 : a.readingMinutes <= 4 ? 176 : 192,
-});
-
-/** 幅 320 に収まるように背表紙を行に折り返す */
-const packLines = (spines: Spine[]): Spine[][] => {
-  const lines: Spine[][] = [];
-  let line: Spine[] = [];
-  let width = 0;
-  for (const s of spines) {
-    const next = width + (line.length ? SPINE_GAP : 0) + s.width;
-    if (line.length && next > SHELF_WIDTH) {
-      lines.push(line);
-      line = [];
-      width = 0;
-    }
-    line.push(s);
-    width += (line.length > 1 ? SPINE_GAP : 0) + s.width;
-  }
-  if (line.length) lines.push(line);
-  return lines;
-};
+// ---- ギャラリー（カテゴリ内の並び順） ----
 
 /** 関連の強い本が隣に並ぶように、最新の本から貪欲に最近傍をたどる */
 const chainBySimilarity = (articles: Article[]): Article[] => {
@@ -199,68 +156,26 @@ const chainBySimilarity = (articles: Article[]): Article[] => {
   return out;
 };
 
-const parkLabel = (parkIds: string[], hasPlaces: boolean) => {
-  if (parkIds.length > 1) return 'リゾート';
-  if (parkIds[0] === 'tdl') return 'ランド';
-  if (parkIds[0] === 'tds') return 'シー';
-  return hasPlaces ? 'リゾート' : 'ほか';
-};
-const PARK_LABEL_ORDER = ['ランド', 'シー', 'リゾート', 'ほか'];
-
 const parkIdsOf = (a: Article) => [...new Set(a.places.map((p) => getParkOf(p)?.id).filter((id): id is string => !!id))];
 
-const decideShelfBy = (categoryId: string, articles: Article[]): ShelfBy => {
-  const override = (categories as readonly Category[]).find((c) => c.id === categoryId)?.shelfBy;
-  if (override) return override;
-  // 連載は冊数にかかわらず順番で並べる
-  if (articles.every((a) => a.series)) return 'series';
-  if (articles.length <= 3) return 'none';
-  const withPark = articles.filter((a) => parkIdsOf(a).length > 0).length;
-  if (withPark / articles.length >= PARK_SHELF_RATIO) return 'park';
-  return 'none';
+// 並べる順：ランド → シー → 両パーク／リゾート → 場所なし
+const parkGroupOf = (a: Article) => {
+  const parks = parkIdsOf(a);
+  if (parks.length > 1) return 2;
+  if (parks[0] === 'tdl') return 0;
+  if (parks[0] === 'tds') return 1;
+  return a.places.length > 0 ? 2 : 3;
 };
 
-const buildShelf = (categoryId: string, articles: Article[]): Shelf => {
-  const shelfBy = decideShelfBy(categoryId, articles);
-  const display = articles.length <= 3 ? 'face-out' : 'spines';
-
-  const rowsFromGroups = (groups: Map<string, Article[]>, order: (a: string, b: string) => number): ShelfRow[] =>
-    [...groups.entries()]
-      .sort(([a], [b]) => order(a, b))
-      .map(([label, items]) => ({ label, lines: packLines(chainBySimilarity(items).map(spineOf)) }));
-
-  let rows: ShelfRow[];
-  if (shelfBy === 'park') {
-    const groups = new Map<string, Article[]>();
-    for (const a of articles) {
-      const label = parkLabel(parkIdsOf(a), a.places.length > 0);
-      groups.set(label, [...(groups.get(label) ?? []), a]);
-    }
-    rows = rowsFromGroups(groups, (a, b) => PARK_LABEL_ORDER.indexOf(a) - PARK_LABEL_ORDER.indexOf(b));
-  } else if (shelfBy === 'series') {
-    const groups = new Map<string, Article[]>();
-    for (const a of articles) {
-      const label = getSeries(a.series!.id)?.name ?? a.series!.id;
-      groups.set(label, [...(groups.get(label) ?? []), a]);
-    }
-    rows = [...groups.entries()].map(([label, items]) => ({
-      label,
-      lines: packLines([...items].sort((a, b) => a.series!.order - b.series!.order).map(spineOf)),
-    }));
-  } else if (shelfBy === 'tag') {
-    // 最初のテーマタグで段を分ける。タグのない本は「ほか」
-    const groups = new Map<string, Article[]>();
-    for (const a of articles) {
-      const tagId = a.tags.find((t) => tagMaster.find((m) => m.id === t)?.kind === 'topic');
-      const label = tagId ? (tagMaster.find((m) => m.id === tagId)?.name ?? tagId) : 'ほか';
-      groups.set(label, [...(groups.get(label) ?? []), a]);
-    }
-    rows = rowsFromGroups(groups, (a, b) => (a === 'ほか' ? 1 : 0) - (b === 'ほか' ? 1 : 0) || a.localeCompare(b, 'ja'));
-  } else {
-    rows = [{ lines: packLines(chainBySimilarity(articles).map(spineOf)) }];
+const orderArticles = (articles: Article[]): Article[] => {
+  if (articles.every((a) => a.series)) return [...articles].sort((a, b) => a.series!.order - b.series!.order);
+  const withPark = articles.filter((a) => parkIdsOf(a).length > 0).length;
+  if (articles.length > 3 && withPark / articles.length >= PARK_GROUP_RATIO) {
+    const groups = new Map<number, Article[]>();
+    for (const a of articles) groups.set(parkGroupOf(a), [...(groups.get(parkGroupOf(a)) ?? []), a]);
+    return [...groups.entries()].sort(([a], [b]) => a - b).flatMap(([, items]) => chainBySimilarity(items));
   }
-
-  return { categoryId, shelfBy, display, rows };
+  return chainBySimilarity(articles);
 };
 
 // ---- 関連 ----
@@ -298,17 +213,17 @@ export const buildExploreModel = (all: Article[] = getArticles()): ExploreModel 
     };
   }
 
-  const shelves: Record<string, Shelf> = {};
-  for (const [categoryId, items] of groups) shelves[categoryId] = buildShelf(categoryId, items);
+  const galleries: Record<string, Gallery> = {};
+  for (const [categoryId, items] of groups) galleries[categoryId] = { categoryId, slugs: orderArticles(items).map((a) => a.slug) };
 
   const related: Record<string, RelatedBook[]> = {};
   for (const a of all) related[a.slug] = relatedOf(a, all);
 
   return {
-    version: 1,
+    version: 2,
     sky: { box: { ...SKY_BOX }, constellations: buildConstellations(groups) },
     articles,
-    shelves,
+    galleries,
     related,
     newest,
   };
@@ -342,21 +257,16 @@ export const assertLayout = (model: ExploreModel): void => {
     }
   }
 
-  const shelved = new Map<string, number>();
-  for (const shelf of Object.values(model.shelves)) {
-    for (const row of shelf.rows) {
-      for (const line of row.lines) {
-        const width = line.reduce((w, s, i) => w + s.width + (i ? SPINE_GAP : 0), 0);
-        if (width > SHELF_WIDTH) errors.push(`${shelf.categoryId}: 段「${row.label ?? ''}」の行幅 ${width} が ${SHELF_WIDTH} を超えています`);
-        for (const s of line) shelved.set(s.slug, (shelved.get(s.slug) ?? 0) + 1);
-      }
+  const seen = new Map<string, number>();
+  for (const g of Object.values(model.galleries)) {
+    for (const slug of g.slugs) {
+      seen.set(slug, (seen.get(slug) ?? 0) + 1);
+      if (model.articles[slug]?.categoryId !== g.categoryId) errors.push(`${slug}: ${g.categoryId} のギャラリーにありますがカテゴリが違います`);
     }
   }
   for (const slug of slugs) {
-    const n = shelved.get(slug) ?? 0;
-    if (n !== 1) errors.push(`${slug}: 本棚に ${n} 回登場しています（1 回のはず）`);
-    const len = [...model.articles[slug].title].length;
-    if (len > SPINE_MAX_CHARS) errors.push(`${slug}: 題が ${len} 文字で背表紙に収まりません（${SPINE_MAX_CHARS} 文字まで）`);
+    const n = seen.get(slug) ?? 0;
+    if (n !== 1) errors.push(`${slug}: ギャラリーに ${n} 回登場しています（1 回のはず）`);
   }
 
   for (const [slug, books] of Object.entries(model.related)) {

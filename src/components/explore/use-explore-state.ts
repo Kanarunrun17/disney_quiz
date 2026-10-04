@@ -22,7 +22,7 @@ export const parseHash = (hash: string, model: ExploreModel): View => {
   const raw = decodeURIComponent(hash.replace(/^#/, ''));
   if (!raw) return { level: 0 };
   const [category, slug] = raw.split('/');
-  if (!model.shelves[category]) return { level: 0 };
+  if (!model.galleries[category]) return { level: 0 };
   if (slug && model.articles[slug]?.categoryId === category) return { level: 2, category, slug };
   return { level: 1, category };
 };
@@ -75,7 +75,7 @@ export function useExploreState(model: ExploreModel) {
     }
     // 旧形式のクエリ（?c=category）はハッシュに置き換える
     const c = new URLSearchParams(window.location.search).get('c');
-    if (c && model.shelves[c]) window.history.replaceState(window.history.state, '', `${window.location.pathname}#${c}`);
+    if (c && model.galleries[c]) window.history.replaceState(window.history.state, '', `${window.location.pathname}#${c}`);
 
     fromHash(true);
     const onPop = () => fromHash(false);

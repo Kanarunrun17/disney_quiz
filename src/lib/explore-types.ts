@@ -35,29 +35,16 @@ export type ArticleNode = {
   legacyId?: number;
 };
 
-/** 背表紙。width は題の長さ（11 文字以下 44 / 12 文字以上 88）、height は読了分数（160 / 176 / 192） */
-export type Spine = { slug: string; width: 44 | 88; height: 160 | 176 | 192 };
-
-/** 棚の 1 段。ラベル（ランド／シーなど）と、幅 320 に収まるように折り返した行 */
-export type ShelfRow = { label?: string; lines: Spine[][] };
-
-export type ShelfBy = 'park' | 'series' | 'tag' | 'none';
-
-export type Shelf = {
-  categoryId: string;
-  shelfBy: ShelfBy;
-  /** spines: 背表紙を並べる / face-out: 3 冊以下は表紙を正面に向けた面陳列 */
-  display: 'spines' | 'face-out';
-  rows: ShelfRow[];
-};
+/** 1 カテゴリの本の並び（浮かぶカードの順）。連載は順番どおり、それ以外はパークでまとめた上で関連の強い本が隣になる */
+export type Gallery = { categoryId: string; slugs: string[] };
 
 export type RelatedBook = { slug: string; score: number; categoryId: string };
 
 export type ExploreModel = {
-  version: 1;
+  version: 2;
   sky: { box: { w: number; h: number }; constellations: Constellation[] };
   articles: Record<string, ArticleNode>;
-  shelves: Record<string, Shelf>;
+  galleries: Record<string, Gallery>;
   related: Record<string, RelatedBook[]>;
   newest: string[];
 };

@@ -8,7 +8,7 @@ import type { View } from './use-explore-state';
 // 計測（getBoundingClientRect）は遷移ごとに 1 回。アニメーション中は will-change を付け、終わったら外す。
 
 export const paneKeyOf = (view: View) =>
-  view.level === 0 ? 'sky' : view.level === 1 ? `shelf:${view.category}` : 'book';
+  view.level === 0 ? 'sky' : view.level === 1 ? `gallery:${view.category}` : 'book';
 
 const EASE_ENTER = 'cubic-bezier(0.2, 0, 0, 1)';
 const EASE_EXIT = 'cubic-bezier(0.3, 0, 1, 1)';
@@ -47,6 +47,29 @@ const flipTransform = (from: Element, to: Element) => {
 
 const byFocusId = (root: Element, id: string) => root.querySelector<HTMLElement>(`[data-focus-id="${CSS.escape(id)}"]`);
 
+/** ギャラリーのカードは繰り返し並ぶので、押されたもの（data-selected）か、画面中央に最も近いものを選ぶ */
+const cardOf = (pane: Element, slug: string) => {
+  const selected = pane.querySelector<HTMLElement>('[data-selected]');
+  if (selected) {
+    selected.removeAttribute('data-selected');
+    return selected;
+  }
+  const center = pane.getBoundingClientRect();
+  const cx = center.left + center.width / 2;
+  let best: HTMLElement | null = null;
+  let bestD = Infinity;
+  for (const el of pane.querySelectorAll<HTMLElement>(`[data-slug="${CSS.escape(slug)}"]`)) {
+    const r = el.getBoundingClientRect();
+    if (!r.width) continue;
+    const d = Math.abs(r.left + r.width / 2 - cx);
+    if (d < bestD) {
+      bestD = d;
+      best = el;
+    }
+  }
+  return best ?? byFocusId(pane, slug);
+};
+
 // ---- 遷移ごとの振り付け ----
 
 const zoomIn = ({ from, to, fromPane, toPane, anims }: Ctx) => {
@@ -65,9 +88,9 @@ const zoomIn = ({ from, to, fromPane, toPane, anims }: Ctx) => {
     easing: EASE_ENTER,
     fill: 'backwards',
   });
-  const spines = [...toPane.querySelectorAll<HTMLElement>('.spine')].slice(0, STAGGER_MAX);
-  spines.forEach((spine, i) =>
-    run(anims, spine, [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], {
+  const cards = [...toPane.querySelectorAll<HTMLElement>('[data-stagger]')].slice(0, STAGGER_MAX);
+  cards.forEach((card, i) =>
+    run(anims, card, [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], {
       duration: 240,
       delay: 80 + i * STAGGER_MS,
       easing: EASE_ENTER,
@@ -90,14 +113,14 @@ const zoomOut = ({ from, fromPane, toPane, anims }: Ctx) => {
 
 const lift = ({ to, fromPane, toPane, anims }: Ctx) => {
   if (to.level !== 2) return;
-  const spine = byFocusId(fromPane, to.slug);
+  const card = cardOf(fromPane, to.slug);
   const cover = toPane.querySelector<HTMLElement>('.cover');
-  const start = spine && cover ? flipTransform(spine, cover) : null;
+  const start = card && cover ? flipTransform(card, cover) : null;
   if (cover && start) {
     cover.style.transformOrigin = 'top left';
     run(anims, cover, [{ transform: start }, { transform: 'none' }], { duration: 360, easing: EASE_LIFT });
-    // 表紙が飛び立つ間、元の背表紙は隠す（終わると本棚ごと hidden になる）
-    run(anims, spine, [{ opacity: 0 }, { opacity: 0 }], { duration: 360, fill: 'none' });
+    // 表紙が飛び立つ間、元のカードは隠す（終わるとギャラリーごと hidden になる）
+    run(anims, card, [{ opacity: 0 }, { opacity: 0 }], { duration: 360, fill: 'none' });
   } else {
     run(anims, cover, [{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: EASE_ENTER });
   }
@@ -116,9 +139,9 @@ const lift = ({ to, fromPane, toPane, anims }: Ctx) => {
 
 const putBack = ({ from, fromPane, toPane, anims }: Ctx) => {
   if (from.level !== 2) return;
-  const spine = byFocusId(toPane, from.slug);
+  const card = cardOf(toPane, from.slug);
   const cover = fromPane.querySelector<HTMLElement>('.cover');
-  const end = spine && cover ? flipTransform(spine, cover) : null;
+  const end = card && cover ? flipTransform(card, cover) : null;
   if (cover && end) {
     cover.style.transformOrigin = 'top left';
     run(anims, cover, [{ transform: 'none', opacity: 1 }, { transform: end, opacity: 0.6 }], {
@@ -126,7 +149,7 @@ const putBack = ({ from, fromPane, toPane, anims }: Ctx) => {
       easing: EASE_EXIT,
       fill: 'forwards',
     });
-    run(anims, spine, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.8 }, { opacity: 1, offset: 1 }], { duration: 320 });
+    run(anims, card, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.8 }, { opacity: 1, offset: 1 }], { duration: 320 });
   }
   run(anims, fromPane.querySelector('.related'), [{ opacity: 1 }, { opacity: 0 }], { duration: 150, easing: EASE_EXIT, fill: 'forwards' });
   run(anims, toPane, [{ opacity: 0, transform: 'scale(0.96)' }, { opacity: 1, transform: 'none' }], {

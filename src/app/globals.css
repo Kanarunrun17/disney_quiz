@@ -175,6 +175,21 @@ body {
   }
 }
 
+/* 記事ページの戻る矢印 */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  color: var(--accent);
+  transition: background var(--dur-micro) ease-out;
+}
+.back-link:hover {
+  background: var(--accent-soft);
+}
+
 /* 記事本文 */
 .article-body {
   line-height: 1.9;

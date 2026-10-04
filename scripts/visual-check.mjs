@@ -33,6 +33,30 @@ const smallTexts = (page) =>
     return out;
   }, MIN_FONT_PX);
 
+
+// 表示中のギャラリーで、ステージの中央に最も近いカード（輪は回り続けるので force で押す。
+// カードは繰り返し並ぶので、何番目かで特定する）
+const centerCard = async (page) => {
+  const index = await page.evaluate(() => {
+    const stage = document.querySelector('.explore-gallery:not([hidden]) .gallery-stage').getBoundingClientRect();
+    const cx = stage.left + stage.width / 2;
+    const cy = stage.top + stage.height / 2;
+    let best = 0;
+    let bestD = Infinity;
+    [...document.querySelectorAll('.explore-gallery:not([hidden]) .card')].forEach((el, i) => {
+      const r = el.getBoundingClientRect();
+      if (!r.width) return;
+      const d = Math.hypot(r.left + r.width / 2 - cx, r.top + r.height / 2 - cy);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    });
+    return best;
+  });
+  return page.locator('.explore-gallery:not([hidden]) .card').nth(index);
+};
+
 const level = (page) => page.evaluate(() => document.querySelector('.explore')?.dataset.level);
 
 // 星座ラベル同士の重なり（2px 以上）の数
@@ -89,6 +113,7 @@ try {
   await page.goto(`${BASE}/`);
   await waitLevel(page, 0);
   check((await page.locator('.constellation:visible').count()) === 7, 'L0: 星座が 7 つ表示される');
+  check(await page.locator('.topbar-crumbs').isVisible(), 'L0: パンくずがヘッダーの下にある');
   check((await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)), 'L0: スクロールが発生しない');
   check((await labelOverlaps(page)) === 0, 'L0: 星座のラベルが重ならない');
   check(await page.locator('.skyline').isVisible(), 'L0: スカイラインが表示される');
@@ -101,13 +126,24 @@ try {
   await waitLevel(page, 1);
   const hash1 = await page.evaluate(() => location.hash);
   check(/^#[a-z-]+$/.test(hash1), `L1: ハッシュが #category になる (${hash1})`);
-  check((await page.locator('.spine:visible').count()) > 0, 'L1: 背表紙が表示される');
+  check((await page.locator('.explore-gallery:not([hidden]) .card').count()) > 0, 'L1: カードが表示される');
+  // スクロールで回る（スクロール位置が輪の回転になる）
+  const before = await page.evaluate(() => document.querySelector('.explore-gallery:not([hidden]) .gallery-ring').style.transform);
+  await page.evaluate(() => {
+    const el = document.querySelector('.explore-gallery:not([hidden]) .gallery-scroller');
+    el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    el.scrollLeft += 160;
+  });
+  await page.waitForTimeout(120);
+  const after = await page.evaluate(() => document.querySelector('.explore-gallery:not([hidden]) .gallery-ring').style.transform);
+  check(before !== after, 'L1: スクロールでギャラリーが回る');
+  check((await level(page)) === '1', 'L1: スクロールしてもレベルは変わらない');
   check(await settled(page), 'L1: 遷移後に動き続けるアニメーションがなく will-change が外れている');
   small = await smallTexts(page);
   check(small.length === 0, `L1: 12px 未満の文字がない ${small.join(', ')}`);
   await page.screenshot({ path: `${OUT}/l1-mobile.png` });
 
-  await page.locator('.spine').first().click();
+  await (await centerCard(page)).click({ force: true });
   await waitLevel(page, 2);
   const hash2 = await page.evaluate(() => location.hash);
   check(/^#[a-z-]+\/[a-z0-9-]+$/.test(hash2), `L2: ハッシュが #category/slug になる (${hash2})`);
@@ -132,7 +168,7 @@ try {
   // 表紙 → 記事ページ → 戻ると L2
   await page.locator('.constellation').first().click();
   await waitLevel(page, 1);
-  await page.locator('.spine').first().click();
+  await (await centerCard(page)).click({ force: true });
   await waitLevel(page, 2);
   const vtSupported = await page.evaluate(() => {
     const original = document.startViewTransition?.bind(document);
@@ -147,6 +183,10 @@ try {
   await page.locator('.cover').click();
   await page.waitForURL(/\/trivia\//, { timeout: 10000 });
   check(await page.locator('article h1').isVisible(), '表紙を押すと記事ページが開く');
+  check(
+    (await page.locator('article header a.text-accent').getAttribute('href')) === '/#architecture' && (await page.locator('article .back-link').count()) === 1,
+    '記事のカテゴリリンクが探索ホームのカテゴリを指し、戻る矢印がある',
+  );
   if (vtSupported) check((await page.evaluate(() => window.__vtCalls)) > 0, '表紙 → 記事で View Transition が起動する');
   await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))));
   await page.screenshot({ path: `${OUT}/article-mobile.png` });
@@ -204,7 +244,7 @@ try {
   await page.locator('.constellation').first().click();
   await waitLevel(page, 1);
   await page.screenshot({ path: `${OUT}/l1-desktop.png` });
-  await page.locator('.spine').first().click();
+  await (await centerCard(page)).click({ force: true });
   await waitLevel(page, 2);
   await page.screenshot({ path: `${OUT}/l2-desktop.png` });
   await desktop.close();
