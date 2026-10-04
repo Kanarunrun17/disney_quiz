@@ -7,6 +7,7 @@ import matter from 'gray-matter';
 import { z } from 'zod';
 import { articleSchema, findArticleFiles } from '../content/loader';
 import { remarkPlugins } from '../content/mdx';
+import { assertLayout, buildExploreModel } from '../src/lib/explore';
 import {
   categories,
   categorySchema,
@@ -115,6 +116,8 @@ const main = async () => {
 
       if (new Set(fm.tags).size !== fm.tags.length) err(where, 'tags に重複があります');
       if (new Set(fm.places).size !== fm.places.length) err(where, 'places に重複があります');
+      if (fm.tags.length === 0 && fm.places.length === 0 && !fm.series)
+        warn(where, 'タグも場所も連載もないため、探索ホームで他の記事とつながりません');
 
       if (fm.legacyId !== undefined) {
         if (legacyIds.has(fm.legacyId)) err(where, `legacyId ${fm.legacyId} が ${legacyIds.get(fm.legacyId)} と重複しています`);
@@ -147,6 +150,15 @@ const main = async () => {
   unused('categories', categories.map((c) => c.id), used.category);
   unused('tags', tags.map((t) => t.id), used.tag);
   unused('series', series.map((s) => s.id), used.series);
+
+  // 探索ホームのレイアウト（記事に不備があるとモデルが作れないので、記事エラーがないときだけ）
+  if (errors.length === 0) {
+    try {
+      assertLayout(buildExploreModel());
+    } catch (e) {
+      err('explore', (e as Error).message);
+    }
+  }
 
   // ---- 結果 ----
 

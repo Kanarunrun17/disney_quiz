@@ -9,7 +9,8 @@
     "start": "npx serve out",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "content:validate": "tsx scripts/validate-content.ts"
+    "content:validate": "tsx scripts/validate-content.ts",
+    "explore:dump": "tsx scripts/dump-explore.ts"
   },
   "dependencies": {
     "@mdx-js/mdx": "^3.1.1",
