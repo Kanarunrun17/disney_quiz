@@ -31,14 +31,13 @@ const layoutOf = (count: number): Layout => {
   return { rows, cols, step, radius, circumference: 2 * Math.PI * radius, ringHeight: rows * CELL + (rows - 1) * GAP };
 };
 
-// 題から決定的にカードの形と色調を選ぶ（動画のように大きさと色がまちまちに見えるように）
+// 題から決定的にカードの形を選ぶ（動画のように大きさがまちまちに見えるように）。色はカテゴリ色で統一
 const hashOf = (s: string) => {
   let h = 2166136261;
   for (const ch of s) h = Math.imul(h ^ ch.codePointAt(0)!, 16777619);
   return h >>> 0;
 };
 const SHAPES = ['card-portrait', 'card-square', 'card-landscape'] as const;
-const TONES = ['tone-pastel', 'tone-paper', 'tone-ink'] as const;
 
 const PARK_NAMES: Record<string, string> = { tdl: 'ランド', tds: 'シー' };
 
@@ -188,7 +187,6 @@ export function GalleryLevel({
               const tilt = layout.rows === 1 ? 0 : -(row - (layout.rows - 1) / 2) * ROW_TILT_DEG;
               const h = hashOf(slug);
               const shape = SHAPES[h % SHAPES.length];
-              const tone = TONES[(h >>> 3) % TONES.length];
               return (
                 <li
                   key={`${slug}-${i}`}
@@ -198,7 +196,7 @@ export function GalleryLevel({
                 >
                   <Link
                     href={a.href}
-                    className={`card ${shape} ${tone}${a.isNew ? ' card-new' : ''}`}
+                    className={`card ${shape}${a.isNew ? ' card-new' : ''}`}
                     data-slug={slug}
                     data-focus-id={duplicate ? undefined : slug}
                     data-stagger

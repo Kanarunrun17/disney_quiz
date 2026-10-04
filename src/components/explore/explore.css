@@ -324,7 +324,7 @@ html[data-explore-first] .constellation-edge {
   backface-visibility: hidden;
 }
 
-/* カード（記事のプレビュー）。形と色調は題から決定的に選ばれる */
+/* カード（記事のプレビュー）。形は題から決定的に選ばれ、色はカテゴリ色 */
 .card {
   box-sizing: border-box;
   position: relative;
@@ -335,6 +335,8 @@ html[data-explore-first] .constellation-edge {
   padding: 14px 14px 12px;
   text-decoration: none;
   border-radius: 10px;
+  background: var(--c);
+  color: var(--sky-900);
   box-shadow: 0 1px 0 rgb(0 0 0 / 0.25);
   backface-visibility: hidden;
   transition: transform var(--dur-micro) ease-out;
@@ -350,21 +352,6 @@ html[data-explore-first] .constellation-edge {
 .card-landscape {
   width: 190px;
   height: 144px;
-}
-.tone-pastel {
-  background: var(--c);
-  color: var(--sky-900);
-}
-.tone-paper {
-  background: var(--paper);
-  color: var(--sky-900);
-}
-.tone-ink {
-  background: var(--sky-500);
-  color: var(--paper);
-}
-.tone-ink .card-title {
-  color: var(--c);
 }
 .card:hover {
   transform: translateY(-4px);
@@ -384,17 +371,8 @@ html[data-explore-first] .constellation-edge {
   color: rgb(11 18 48 / 0.1);
   pointer-events: none;
 }
-.tone-ink .card-motif {
-  color: rgb(245 241 230 / 0.08);
-}
 .card-motif .motif-hole {
   fill: var(--c);
-}
-.tone-paper .card-motif .motif-hole {
-  fill: var(--paper);
-}
-.tone-ink .card-motif .motif-hole {
-  fill: var(--sky-500);
 }
 .card-title {
   font: 700 15px/1.4 var(--font-display);
