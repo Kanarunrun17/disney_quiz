@@ -1,46 +1,49 @@
-# Getting Started with Create React App
+# ディズニー トリビア
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+ディズニーの映画やパークにまつわる雑学を紹介する、個人運営のファンサイト。
 
-## Available Scripts
+## 技術構成
 
-In the project directory, you can run:
+| 役割 | 技術 |
+|---|---|
+| フレームワーク | Next.js（App Router）。全ページを静的 HTML として書き出す（`output: 'export'`） |
+| スタイル | Tailwind CSS v4。色や文字はトークンとして `src/app/globals.css` にまとめている |
+| 記事 | `content/articles/*.mdx`。スキーマは zod で定義し、ビルド前に検証する |
+| ホスティング | Vercel（Hobby プラン） |
 
-### `npm start`
+記事データの構成と書き方は [docs/content-model.md](docs/content-model.md) を参照。
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+## 開発
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+```bash
+npm install
+npm run dev               # http://localhost:3000
+npm run content:validate  # 記事とマスタの検証
+npm run lint
+npm run typecheck
+npm run build             # 検証 → 静的書き出し（out/）
+npm start                 # out/ をローカルで配信して確認
+```
 
-### `npm test`
+## ディレクトリ
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```
+content/        記事（MDX）・マスタ・スキーマ
+docs/           設計ドキュメント
+scripts/        検証スクリプト
+src/app/        ページ
+src/components/ 共通部品
+src/lib/        記事の読み込み・MDX の描画・サイト設定
+```
 
-### `npm run build`
+## デプロイ
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+`main` に push すると Vercel が自動でビルド・公開する（プルリクエストごとにプレビュー URL も発行される）。
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+初回のみ：Vercel にログイン →「Add New… → Project」→ このリポジトリを Import。設定は自動で検出されるので変更不要。
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### 無料で使い続けるための条件（Vercel Hobby プラン）
 
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+- **商用利用は不可。** 広告（Google AdSense など）を載せる、商品を宣伝する、アフィリエイトリンクが主目的になる、といった使い方は規約違反になる。寄付の募集は商用利用に当たらない
+- 上限（転送量 月100GB など）を超えても課金はされず、機能が一時停止する
+- 将来広告などを載せたくなったら、商用利用も無料で許されている Cloudflare などの静的ホスティングに移す。静的書き出しにしているのはそのため（`out/` をそのまま置ける）
