@@ -15,6 +15,7 @@ import {
   getTag,
 } from '@/lib/content';
 import { MdxContent } from '@/lib/mdx';
+import { BackLink } from '@/components/back-link';
 import { formatDate } from '@/lib/site';
 
 export const dynamicParams = false;
@@ -58,9 +59,13 @@ export default async function TriviaPage({ params }: PageProps<'/trivia/[slug]'>
     <article className="mx-auto max-w-2xl">
       <ViewTransition name={`book-${article.slug}`} share="book-open" default="none">
       <header className="article-header" style={{ '--c': category?.color } as CSSProperties}>
-        <Link href={`/categories/${article.category}`} className="text-sm font-medium text-accent">
-          {category?.name}
-        </Link>
+        {/* 一つ前（探索ホームのこのカテゴリ）へ。直接開いたときもカテゴリのギャラリーに戻れる */}
+        <div className="-ml-2 flex items-center gap-1">
+          <BackLink fallbackHref={`/#${article.category}`} label="前の画面に戻る" />
+          <Link href={`/#${article.category}`} className="text-sm font-medium text-accent">
+            {category?.name}
+          </Link>
+        </div>
         <h1 className="mt-2 text-2xl font-bold leading-snug md:text-3xl">{article.title}</h1>
         <p className="mt-3 flex flex-wrap gap-x-4 text-sm text-muted">
           <time dateTime={article.publishedAt.toISOString()}>{formatDate(article.publishedAt)}</time>

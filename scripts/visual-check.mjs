@@ -113,6 +113,7 @@ try {
   await page.goto(`${BASE}/`);
   await waitLevel(page, 0);
   check((await page.locator('.constellation:visible').count()) === 7, 'L0: 星座が 7 つ表示される');
+  check(await page.locator('.topbar-crumbs').isVisible(), 'L0: パンくずがヘッダーの下にある');
   check((await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)), 'L0: スクロールが発生しない');
   check((await labelOverlaps(page)) === 0, 'L0: 星座のラベルが重ならない');
   check(await page.locator('.skyline').isVisible(), 'L0: スカイラインが表示される');
@@ -182,6 +183,10 @@ try {
   await page.locator('.cover').click();
   await page.waitForURL(/\/trivia\//, { timeout: 10000 });
   check(await page.locator('article h1').isVisible(), '表紙を押すと記事ページが開く');
+  check(
+    (await page.locator('article header a.text-accent').getAttribute('href')) === '/#architecture' && (await page.locator('article .back-link').count()) === 1,
+    '記事のカテゴリリンクが探索ホームのカテゴリを指し、戻る矢印がある',
+  );
   if (vtSupported) check((await page.evaluate(() => window.__vtCalls)) > 0, '表紙 → 記事で View Transition が起動する');
   await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))));
   await page.screenshot({ path: `${OUT}/article-mobile.png` });

@@ -5,10 +5,10 @@ import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import type { ExploreModel } from '@/lib/explore-types';
 import { BookLevel } from './book-level';
-import { Dock } from './dock';
 import { GalleryLevel } from './gallery-level';
 import { Grain } from './grain';
 import { SkyLevel } from './sky-level';
+import { Topbar } from './topbar';
 import { useExploreState } from './use-explore-state';
 import { paneKeyOf, useLevelTransition } from './use-level-transition';
 import './explore.css';
@@ -98,6 +98,7 @@ export function Explorer({ model, siteName }: { model: ExploreModel; siteName: s
           </svg>
         </Link>
       </header>
+      <Topbar model={model} view={view} onAscend={ascendTo} />
 
       <main className="explore-stage" aria-label="記事をさがす" ref={stageRef}>
         <SkyLevel
@@ -132,7 +133,6 @@ export function Explorer({ model, siteName }: { model: ExploreModel; siteName: s
         />
       </main>
 
-      <Dock model={model} view={view} onAscend={ascendTo} />
       <Grain />
     </div>
   );

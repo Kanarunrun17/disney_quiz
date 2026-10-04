@@ -5,12 +5,14 @@
 
 .explore {
   --header-h: 56px;
-  --dock-h: calc(64px + env(safe-area-inset-bottom, 0px));
+  --topbar-h: 44px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
   --skyline-h: clamp(72px, 15vh, 130px);
-  --u: min(calc(100vw / 390), calc((100vh - var(--header-h) - var(--dock-h) - var(--skyline-h) - 16px) / 560));
-  --u: min(calc(100vw / 390), calc((100dvh - var(--header-h) - var(--dock-h) - var(--skyline-h) - 16px) / 560));
+  --u: min(calc(100vw / 390), calc((100vh - var(--header-h) - var(--topbar-h) - var(--skyline-h) - var(--safe-bottom) - 16px) / 560));
+  --u: min(calc(100vw / 390), calc((100dvh - var(--header-h) - var(--topbar-h) - var(--skyline-h) - var(--safe-bottom) - 16px) / 560));
   position: fixed;
   inset: 0;
+  padding-bottom: var(--safe-bottom);
   display: flex;
   flex-direction: column;
   background: var(--sky-900);
@@ -28,7 +30,7 @@
 }
 .explore-header,
 .explore-stage,
-.dock {
+.topbar {
   position: relative;
   z-index: 1;
 }
@@ -544,20 +546,18 @@ html[data-explore-first] .constellation-edge {
   font: 500 14px/1.4 var(--font-display);
 }
 
-/* ---- ドック ---- */
-.dock {
+/* ---- トップバー（戻る・パンくず） ---- */
+.topbar {
   flex-shrink: 0;
   box-sizing: border-box;
-  height: var(--dock-h);
-  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  height: var(--topbar-h);
+  padding: 0 12px;
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) 44px;
   align-items: center;
   gap: 8px;
-  background: color-mix(in oklab, var(--sky-700) 92%, transparent);
-  border-top: 1px solid var(--border);
 }
-.dock-back {
+.topbar-back {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -572,14 +572,14 @@ html[data-explore-first] .constellation-edge {
     background var(--dur-micro) ease-out,
     opacity var(--dur-micro) ease-out;
 }
-.dock-back:hover {
+.topbar-back:hover {
   background: var(--sky-500);
 }
-.dock-back:disabled {
+.topbar-back:disabled {
   opacity: 0;
   pointer-events: none;
 }
-.dock-crumbs {
+.topbar-crumbs {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -591,30 +591,30 @@ html[data-explore-first] .constellation-edge {
   font-size: 12px;
   color: var(--sky-muted);
 }
-.dock-crumbs li {
+.topbar-crumbs li {
   display: flex;
   align-items: center;
   min-width: 0;
 }
 /* 「空」は縮めない。カテゴリは題があるときだけ上限を持ち、末尾（題）が省略を引き受ける */
-.dock-crumbs li:first-child {
+.topbar-crumbs li:first-child {
   flex-shrink: 0;
 }
-.dock-crumbs li:nth-child(2):not(:last-child) {
+.topbar-crumbs li:nth-child(2):not(:last-child) {
   flex-shrink: 0;
   max-width: 34vw;
 }
-.dock-crumbs li:last-child {
+.topbar-crumbs li:last-child {
   max-width: 60vw;
 }
-.dock-crumbs li + li::before {
+.topbar-crumbs li + li::before {
   content: '›';
   flex-shrink: 0;
   margin: 0 4px;
   color: var(--sky-muted-dim);
 }
-.dock-crumbs button,
-.dock-crumbs span {
+.topbar-crumbs button,
+.topbar-crumbs span {
   font-size: 12px;
   /* 行の高さでタップ領域 44px を確保（flex にすると text-overflow が効かない） */
   line-height: 44px;
@@ -625,17 +625,17 @@ html[data-explore-first] .constellation-edge {
   text-overflow: ellipsis;
   max-width: 100%;
 }
-.dock-crumbs button {
+.topbar-crumbs button {
   background: transparent;
   border: 0;
   color: var(--sky-muted);
   cursor: pointer;
   font-family: inherit;
 }
-.dock-crumbs button:hover {
+.topbar-crumbs button:hover {
   color: var(--paper);
 }
-.dock-crumbs [aria-current='page'] {
+.topbar-crumbs [aria-current='page'] {
   color: var(--c, var(--paper));
   font-weight: 500;
 }
