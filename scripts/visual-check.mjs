@@ -38,6 +38,19 @@ const level = (page) => page.evaluate(() => document.querySelector('.explore')?.
 const waitLevel = async (page, n) => {
   await page.waitForSelector(`.explore[data-level="${n}"][data-hydrated]`, { timeout: 5000 });
   await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))));
+  // 退場中の面が片付く（settle）まで待つ
+  await page.waitForFunction(() => !document.querySelector('.explore-pane[data-exiting]'), null, { timeout: 5000 });
+};
+// 遷移が終わった後に動き続けているアニメーションがないか（will-change の付けっぱなしも含む）。
+// クリック位置に残ったマウスの hover トランジションを拾わないよう、先にマウスをどかす
+const settled = async (page) => {
+  await page.mouse.move(2, 2);
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))));
+  return page.evaluate(
+    () =>
+      document.getAnimations().filter((a) => a.playState === 'running').length === 0 &&
+      !document.querySelector('.explore-pane[style*="will-change"]'),
+  );
 };
 
 const serve = spawn('npx', ['-y', 'serve', 'out', '-l', String(PORT)], { stdio: 'ignore' });
@@ -69,6 +82,7 @@ try {
   const hash1 = await page.evaluate(() => location.hash);
   check(/^#[a-z-]+$/.test(hash1), `L1: ハッシュが #category になる (${hash1})`);
   check((await page.locator('.spine:visible').count()) > 0, 'L1: 背表紙が表示される');
+  check(await settled(page), 'L1: 遷移後に動き続けるアニメーションがなく will-change が外れている');
   small = await smallTexts(page);
   check(small.length === 0, `L1: 12px 未満の文字がない ${small.join(', ')}`);
   await page.screenshot({ path: `${OUT}/l1-mobile.png` });
@@ -78,6 +92,11 @@ try {
   const hash2 = await page.evaluate(() => location.hash);
   check(/^#[a-z-]+\/[a-z0-9-]+$/.test(hash2), `L2: ハッシュが #category/slug になる (${hash2})`);
   check(await page.locator('.cover').isVisible(), 'L2: 表紙が表示される');
+  check(await settled(page), 'L2: 遷移後に動き続けるアニメーションがない');
+  check(
+    await page.evaluate(() => getComputedStyle(document.querySelector('.cover')).transform === 'none'),
+    'L2: 表紙の transform が最終状態（none）に戻っている',
+  );
   small = await smallTexts(page);
   check(small.length === 0, `L2: 12px 未満の文字がない ${small.join(', ')}`);
   await page.screenshot({ path: `${OUT}/l2-mobile.png` });
@@ -95,9 +114,22 @@ try {
   await waitLevel(page, 1);
   await page.locator('.spine').first().click();
   await waitLevel(page, 2);
+  const vtSupported = await page.evaluate(() => {
+    const original = document.startViewTransition?.bind(document);
+    if (!original) return false;
+    window.__vtCalls = 0;
+    document.startViewTransition = (...args) => {
+      window.__vtCalls++;
+      return original(...args);
+    };
+    return true;
+  });
   await page.locator('.cover').click();
   await page.waitForURL(/\/trivia\//, { timeout: 10000 });
   check(await page.locator('article h1').isVisible(), '表紙を押すと記事ページが開く');
+  if (vtSupported) check((await page.evaluate(() => window.__vtCalls)) > 0, '表紙 → 記事で View Transition が起動する');
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))));
+  await page.screenshot({ path: `${OUT}/article-mobile.png` });
   await page.goBack();
   await waitLevel(page, 2);
   check((await level(page)) === '2', '記事から戻ると L2 に復帰する');

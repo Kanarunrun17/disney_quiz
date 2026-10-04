@@ -12,12 +12,15 @@ export function ShelfLevel({
   shelf,
   constellation,
   active,
+  exiting,
   onSelect,
 }: {
   model: ExploreModel;
   shelf: Shelf;
   constellation: Constellation;
   active: boolean;
+  /** 退場アニメーション中は hidden にせず表示し続ける */
+  exiting: boolean;
   onSelect: (slug: string) => void;
 }) {
   const headingId = `shelf-${shelf.categoryId}`;
@@ -27,7 +30,8 @@ export function ShelfLevel({
       id={shelf.categoryId}
       className="explore-pane explore-shelf"
       data-pane-key={`shelf:${shelf.categoryId}`}
-      hidden={!active}
+      data-exiting={exiting || undefined}
+      hidden={!active && !exiting}
       inert={!active}
       aria-labelledby={headingId}
       style={{ '--c': constellation.color } as CSSProperties}

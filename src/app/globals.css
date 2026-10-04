@@ -112,6 +112,69 @@ body {
   line-break: strict;
 }
 
+/*
+ * 本が開く（探索ホームの表紙 → 記事ページ）。React の <ViewTransition> が付けるクラスを対象にする。
+ * 記事ページを直接開いたときも、ヘッダーの帯だけは 400ms で「紙に落ち着く」。
+ */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(.book-open) {
+  animation-duration: 400ms;
+  animation-timing-function: var(--ease-enter);
+}
+::view-transition-old(.book-open) {
+  animation: 200ms var(--ease-exit) both vt-fade reverse;
+}
+::view-transition-new(.book-open) {
+  animation: 240ms var(--ease-enter) 120ms both vt-fade;
+}
+::view-transition-new(.article-enter) {
+  animation: 400ms var(--ease-enter) 150ms both vt-rise;
+}
+@keyframes vt-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes vt-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation: none !important;
+  }
+}
+
+/* 記事ヘッダーのカテゴリ色の帯 */
+.article-header::before {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 4px;
+  margin-bottom: 16px;
+  border-radius: 2px;
+  background: var(--c, var(--accent));
+  transform-origin: left center;
+  animation: band-settle 400ms var(--ease-enter) both;
+}
+@keyframes band-settle {
+  from {
+    opacity: 0.4;
+    transform: scaleX(0.5);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .article-header::before {
+    animation: none;
+  }
+}
+
 /* 記事本文 */
 .article-body {
   line-height: 1.9;

@@ -61,21 +61,14 @@ html[data-explore-hash] .explore:not([data-hydrated]) .explore-stage {
   position: absolute;
   inset: 0;
 }
-.explore-pane:not([hidden]) {
-  animation: pane-in var(--dur-exit) var(--ease-enter) both;
+/* 退場アニメーション中の面は見えるが触れない（遷移の振り付けは use-level-transition.ts）。
+   入場する面を前に置く：表紙は背表紙の上を飛び、本棚は溶けていく星空の上に現れる */
+.explore-pane[data-exiting] {
+  pointer-events: none;
+  z-index: 0;
 }
-@keyframes pane-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .explore-pane:not([hidden]) {
-    animation: none;
-  }
+.explore-pane:not([hidden]):not([data-exiting]) {
+  z-index: 1;
 }
 
 /* ---- L0 空 ---- */
@@ -451,8 +444,20 @@ html[data-explore-hash] .explore:not([data-hydrated]) .explore-stage {
   align-items: center;
   min-width: 0;
 }
+/* 「空」は縮めない。カテゴリは題があるときだけ上限を持ち、末尾（題）が省略を引き受ける */
+.dock-crumbs li:first-child {
+  flex-shrink: 0;
+}
+.dock-crumbs li:nth-child(2):not(:last-child) {
+  flex-shrink: 0;
+  max-width: 34vw;
+}
+.dock-crumbs li:last-child {
+  max-width: 60vw;
+}
 .dock-crumbs li + li::before {
   content: '›';
+  flex-shrink: 0;
   margin: 0 4px;
   color: var(--sky-muted-dim);
 }
@@ -466,7 +471,7 @@ html[data-explore-hash] .explore:not([data-hydrated]) .explore-stage {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 40vw;
+  max-width: 100%;
 }
 .dock-crumbs button {
   background: transparent;
