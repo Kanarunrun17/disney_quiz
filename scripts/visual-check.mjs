@@ -34,25 +34,27 @@ const smallTexts = (page) =>
   }, MIN_FONT_PX);
 
 
-// 表示中のギャラリーで、ステージの中央に最も近いカード（輪は回り続けるので force で押す）
+// 表示中のギャラリーで、ステージの中央に最も近いカード（輪は回り続けるので force で押す。
+// カードは繰り返し並ぶので、何番目かで特定する）
 const centerCard = async (page) => {
-  const id = await page.evaluate(() => {
+  const index = await page.evaluate(() => {
     const stage = document.querySelector('.explore-gallery:not([hidden]) .gallery-stage').getBoundingClientRect();
     const cx = stage.left + stage.width / 2;
     const cy = stage.top + stage.height / 2;
-    let best = null;
+    let best = 0;
     let bestD = Infinity;
-    for (const el of document.querySelectorAll('.explore-gallery:not([hidden]) .card')) {
+    [...document.querySelectorAll('.explore-gallery:not([hidden]) .card')].forEach((el, i) => {
       const r = el.getBoundingClientRect();
+      if (!r.width) return;
       const d = Math.hypot(r.left + r.width / 2 - cx, r.top + r.height / 2 - cy);
       if (d < bestD) {
         bestD = d;
-        best = el.dataset.focusId;
+        best = i;
       }
-    }
+    });
     return best;
   });
-  return page.locator(`.explore-gallery:not([hidden]) .card[data-focus-id="${id}"]`);
+  return page.locator('.explore-gallery:not([hidden]) .card').nth(index);
 };
 
 const level = (page) => page.evaluate(() => document.querySelector('.explore')?.dataset.level);
@@ -124,17 +126,17 @@ try {
   const hash1 = await page.evaluate(() => location.hash);
   check(/^#[a-z-]+$/.test(hash1), `L1: ハッシュが #category になる (${hash1})`);
   check((await page.locator('.explore-gallery:not([hidden]) .card').count()) > 0, 'L1: カードが表示される');
-  // 指で回せる（回した直後のクリックは選択にならない）
+  // スクロールで回る（スクロール位置が輪の回転になる）
   const before = await page.evaluate(() => document.querySelector('.explore-gallery:not([hidden]) .gallery-ring').style.transform);
-  const box = await page.locator('.explore-gallery:not([hidden]) .gallery-stage').boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 - 80, box.y + box.height / 2, { steps: 6 });
-  await page.mouse.up();
-  await page.waitForTimeout(100);
+  await page.evaluate(() => {
+    const el = document.querySelector('.explore-gallery:not([hidden]) .gallery-scroller');
+    el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    el.scrollLeft += 160;
+  });
+  await page.waitForTimeout(120);
   const after = await page.evaluate(() => document.querySelector('.explore-gallery:not([hidden]) .gallery-ring').style.transform);
-  check(before !== after, 'L1: ドラッグでギャラリーが回る');
-  check((await level(page)) === '1', 'L1: 回した直後にカードが選択されない');
+  check(before !== after, 'L1: スクロールでギャラリーが回る');
+  check((await level(page)) === '1', 'L1: スクロールしてもレベルは変わらない');
   check(await settled(page), 'L1: 遷移後に動き続けるアニメーションがなく will-change が外れている');
   small = await smallTexts(page);
   check(small.length === 0, `L1: 12px 未満の文字がない ${small.join(', ')}`);

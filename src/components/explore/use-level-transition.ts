@@ -47,6 +47,29 @@ const flipTransform = (from: Element, to: Element) => {
 
 const byFocusId = (root: Element, id: string) => root.querySelector<HTMLElement>(`[data-focus-id="${CSS.escape(id)}"]`);
 
+/** ギャラリーのカードは繰り返し並ぶので、押されたもの（data-selected）か、画面中央に最も近いものを選ぶ */
+const cardOf = (pane: Element, slug: string) => {
+  const selected = pane.querySelector<HTMLElement>('[data-selected]');
+  if (selected) {
+    selected.removeAttribute('data-selected');
+    return selected;
+  }
+  const center = pane.getBoundingClientRect();
+  const cx = center.left + center.width / 2;
+  let best: HTMLElement | null = null;
+  let bestD = Infinity;
+  for (const el of pane.querySelectorAll<HTMLElement>(`[data-slug="${CSS.escape(slug)}"]`)) {
+    const r = el.getBoundingClientRect();
+    if (!r.width) continue;
+    const d = Math.abs(r.left + r.width / 2 - cx);
+    if (d < bestD) {
+      bestD = d;
+      best = el;
+    }
+  }
+  return best ?? byFocusId(pane, slug);
+};
+
 // ---- 遷移ごとの振り付け ----
 
 const zoomIn = ({ from, to, fromPane, toPane, anims }: Ctx) => {
@@ -90,7 +113,7 @@ const zoomOut = ({ from, fromPane, toPane, anims }: Ctx) => {
 
 const lift = ({ to, fromPane, toPane, anims }: Ctx) => {
   if (to.level !== 2) return;
-  const card = byFocusId(fromPane, to.slug);
+  const card = cardOf(fromPane, to.slug);
   const cover = toPane.querySelector<HTMLElement>('.cover');
   const start = card && cover ? flipTransform(card, cover) : null;
   if (cover && start) {
@@ -116,7 +139,7 @@ const lift = ({ to, fromPane, toPane, anims }: Ctx) => {
 
 const putBack = ({ from, fromPane, toPane, anims }: Ctx) => {
   if (from.level !== 2) return;
-  const card = byFocusId(toPane, from.slug);
+  const card = cardOf(toPane, from.slug);
   const cover = fromPane.querySelector<HTMLElement>('.cover');
   const end = card && cover ? flipTransform(card, cover) : null;
   if (cover && end) {

@@ -1,45 +1,46 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, type CSSProperties, type WheelEvent as ReactWheelEvent } from 'react';
 import type { Constellation, ExploreModel, Gallery } from '@/lib/explore-types';
 import { Motif } from './motifs';
 
-// L1 ギャラリー：カテゴリの記事がカード（題・要約）になって 3D の輪に浮かぶ。
-// 冊数が多ければ輪が閉じてゆっくり流れ、少なければ正面の弧にゆれて止まる。指で回せる。
+// L1 ギャラリー：カテゴリの記事がカード（題・要約）になり、3 段のグリッドで球面状に並んで右へ流れ続ける。
+// スクロール（横スワイプ・ホイール）で動かせる。輪が途切れないよう、少ないカテゴリではカードを繰り返す。
 // カードは本物の記事リンクで、JS があればクリックを横取りして L2 へ。
 
-const CARD_W = 150;
-const CARD_H = 200;
+const CELL = 190; // グリッドの 1 マス
 const GAP = 16;
-const STEP_MAX = 45; // 隣のカードとの角度（輪が閉じないときはこの間隔）
-const FULL_MIN_COLS = 8; // この列数以上で輪が閉じる
-const DRIFT_DEG_PER_S = 3; // 閉じた輪がひとりでに流れる速さ
-const SWAY_DEG = 5; // 開いた弧のゆれ幅
-const SWAY_PERIOD_S = 9;
-const DRAG_DEG_PER_PX = 0.35;
-const DRAG_THRESHOLD_PX = 6;
-const RESUME_AFTER_MS = 2000;
+const MIN_COLS = 10; // 複数段のときに輪を閉じる列数（36° 刻み）
+const MIN_COLS_SINGLE = 6; // 1 段のときの最小列数（60° 刻み。少ない冊数で重複を増やさない）
+const ROW_TILT_DEG = 8; // 上下の段のわずかな傾き
+const DRIFT_DEG_PER_S = 5; // 右へ流れる速さ
+const RESUME_AFTER_MS = 2000; // 触ってからこの時間は流れを止める
+const PERIODS = 3; // スクロール領域に輪を何周ぶん用意するか（中央の 1 周を使い、端に寄ったら 1 周ぶん戻す）
+const DESKTOP_SCALE = 1.3;
 
-type Layout = { rows: number; cols: number; full: boolean; step: number; radius: number };
+type Layout = { rows: number; cols: number; step: number; radius: number; circumference: number; ringHeight: number };
 
 const layoutOf = (count: number): Layout => {
-  const rows = count <= 6 ? 1 : 2;
-  const cols = Math.ceil(count / rows);
-  const full = cols >= FULL_MIN_COLS;
-  const step = full ? 360 / cols : STEP_MAX;
-  // 隣のカードが重ならない半径（弦の長さがカード幅＋隙間になる）
-  const radius = Math.max(240, (CARD_W + GAP) / (2 * Math.sin(((step / 2) * Math.PI) / 180)));
-  return { rows, cols, full, step, radius };
+  // 段数は、同じカードが画面に同時に 2 枚見えないよう、列が十分に取れる範囲で増やす
+  const rows = count >= 24 ? 3 : count >= 10 ? 2 : 1;
+  const cols = Math.max(Math.ceil(count / rows), rows === 1 ? MIN_COLS_SINGLE : MIN_COLS);
+  const step = 360 / cols;
+  // 隣のマスが重ならない半径（弦の長さがマス＋隙間になる）
+  const radius = Math.max(300, (CELL + GAP) / (2 * Math.sin(((step / 2) * Math.PI) / 180)));
+  return { rows, cols, step, radius, circumference: 2 * Math.PI * radius, ringHeight: rows * CELL + (rows - 1) * GAP };
 };
 
-const angleOf = (col: number, { cols, full, step }: Layout) => (full ? col * step : (col - (cols - 1) / 2) * step);
-// 静止したときに正面に 1 枚来る回転角（列数が偶数だと 2 枚が中央をまたぐので半歩ずらす）
-const restOf = ({ cols, full, step }: Layout) => (full || cols % 2 === 1 ? 0 : step / 2);
+// 題から決定的にカードの形と色調を選ぶ（動画のように大きさと色がまちまちに見えるように）
+const hashOf = (s: string) => {
+  let h = 2166136261;
+  for (const ch of s) h = Math.imul(h ^ ch.codePointAt(0)!, 16777619);
+  return h >>> 0;
+};
+const SHAPES = ['card-portrait', 'card-square', 'card-landscape'] as const;
+const TONES = ['tone-pastel', 'tone-paper', 'tone-ink'] as const;
 
 const PARK_NAMES: Record<string, string> = { tdl: 'ランド', tds: 'シー' };
-
-type Drag = { x: number; phi: number; moved: boolean };
 
 export function GalleryLevel({
   model,
@@ -57,91 +58,97 @@ export function GalleryLevel({
   exiting: boolean;
   onSelect: (slug: string) => void;
 }) {
-  const layout = useMemo(() => layoutOf(gallery.slugs.length), [gallery.slugs.length]);
+  const count = gallery.slugs.length;
+  const layout = useMemo(() => layoutOf(count), [count]);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLUListElement>(null);
-  const state = useRef({ phi: restOf(layout), drag: null as Drag | null, lastInteract: -Infinity, interacted: false, focusTarget: null as number | null, swallowClick: false });
+  const state = useRef({ started: false, lastInteract: -Infinity, focusTarget: null as number | null });
   const headingId = `gallery-${gallery.categoryId}`;
-  const limit = layout.full ? Infinity : ((layout.cols - 1) / 2) * layout.step;
-  const clamp = (v: number) => Math.max(-limit, Math.min(limit, v));
 
-  // 回転のループ。閉じた輪は流れ、開いた弧は触られるまでゆれる。フォーカスしたカードは正面へ
+  // スクロール位置 → 輪の回転。右へ流れ続け、端に寄ったら 1 周ぶん戻して無限にする
   useEffect(() => {
+    const stage = stageRef.current;
+    const scroller = scrollerRef.current;
     const ring = ringRef.current;
-    if (!active || !ring) return;
+    if (!active || !stage || !scroller || !ring) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const s = state.current;
-    const rest = restOf(layout);
-    // PC では輪ごと少し大きく見せる（CSS の --gallery-scale）
-    const scale = parseFloat(getComputedStyle(ring).getPropertyValue('--gallery-scale')) || 1;
+    const C = layout.circumference;
+    const home = C * (PERIODS / 2); // 回転 0 に対応するスクロール位置
+    if (!s.started) {
+      scroller.scrollLeft = home;
+      s.started = true;
+    }
+
+    let scale = 1;
+    const fit = () => {
+      const max = window.matchMedia('(min-width: 768px)').matches ? DESKTOP_SCALE : 1;
+      scale = Math.min(max, Math.max(0.7, (stage.clientHeight - 32) / layout.ringHeight));
+    };
+    fit();
+    window.addEventListener('resize', fit);
+
     let raf = 0;
     let last = performance.now();
-    const t0 = last;
-
     const tick = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      if (!s.drag) {
-        if (s.focusTarget !== null) {
-          s.phi += (s.focusTarget - s.phi) * Math.min(1, dt * 8);
-          if (Math.abs(s.focusTarget - s.phi) < 0.05) {
-            s.phi = s.focusTarget;
-            s.focusTarget = null;
-          }
-        } else if (!reduce && now - s.lastInteract > RESUME_AFTER_MS) {
-          if (layout.full) s.phi -= DRIFT_DEG_PER_S * dt;
-          else if (!s.interacted) {
-            const target = rest + SWAY_DEG * Math.sin(((now - t0) / 1000) * ((2 * Math.PI) / SWAY_PERIOD_S));
-            s.phi += (target - s.phi) * Math.min(1, dt * 2);
-          }
+      let x = scroller.scrollLeft;
+      // 中央の 1 周から外れたら、見た目を変えずに 1 周ぶん戻す
+      if (x < home - C / 2) x += C;
+      else if (x > home + C / 2) x -= C;
+      if (s.focusTarget !== null) {
+        x += (s.focusTarget - x) * Math.min(1, dt * 8);
+        if (Math.abs(s.focusTarget - x) < 0.5) {
+          x = s.focusTarget;
+          s.focusTarget = null;
         }
+      } else if (!reduce && now - s.lastInteract > RESUME_AFTER_MS) {
+        x -= (C * DRIFT_DEG_PER_S * dt) / 360; // 右へ流れる＝左へスクロール
       }
-      ring.style.transform = `scale(${scale}) translateZ(${-layout.radius}px) rotateY(${s.phi.toFixed(3)}deg)`;
+      if (Math.abs(x - scroller.scrollLeft) >= 0.01) scroller.scrollLeft = x;
+      const phi = -((scroller.scrollLeft - home) / C) * 360;
+      ring.style.transform = `scale(${scale}) translateZ(${-layout.radius}px) rotateY(${phi.toFixed(3)}deg)`;
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', fit);
+    };
   }, [active, layout]);
 
-  const onPointerDown = (e: ReactPointerEvent) => {
-    const s = state.current;
-    s.drag = { x: e.clientX, phi: s.phi, moved: false };
-    s.lastInteract = performance.now();
+  const touched = (at: number) => {
+    state.current.lastInteract = at;
+    state.current.focusTarget = null;
   };
-  const onPointerMove = (e: ReactPointerEvent) => {
-    const s = state.current;
-    if (!s.drag) return;
-    const dx = e.clientX - s.drag.x;
-    if (Math.abs(dx) > DRAG_THRESHOLD_PX) s.drag.moved = true;
-    if (s.drag.moved) s.phi = clamp(s.drag.phi + dx * DRAG_DEG_PER_PX);
+  // PC の縦ホイールも横の移動にする（横トラックパッドはそのままネイティブにスクロールされる）
+  const onWheel = (e: ReactWheelEvent) => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) scroller.scrollLeft += e.deltaY;
+    touched(e.timeStamp);
   };
-  const onPointerEnd = () => {
-    const s = state.current;
-    if (!s.drag) return;
-    s.swallowClick = s.drag.moved;
-    s.interacted = s.interacted || s.drag.moved;
-    s.drag = null;
-    s.lastInteract = performance.now();
+  // キーボードでカードにフォーカスしたら、そのカードを正面へ
+  const focusCard = (angle: number) => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const C = layout.circumference;
+    const home = C * (PERIODS / 2);
+    // 回転 -angle に対応するスクロール位置のうち、今の位置に最も近いもの
+    let target = home + (angle / 360) * C;
+    while (target - scroller.scrollLeft > C / 2) target -= C;
+    while (target - scroller.scrollLeft < -C / 2) target += C;
+    state.current.focusTarget = target;
   };
-  // 回した直後のクリックはカードの選択にしない
-  const onClickCapture = (e: React.MouseEvent) => {
-    const s = state.current;
-    if (!s.swallowClick) return;
-    s.swallowClick = false;
-    e.preventDefault();
-    e.stopPropagation();
-  };
-  // キーボードでカードにフォーカスしたら、そのカードを正面へ回す（時刻はイベントのものを使う）
-  const focusCard = (angle: number, at: number) => {
-    const s = state.current;
-    let target = -angle;
-    if (layout.full) {
-      while (target - s.phi > 180) target -= 360;
-      while (target - s.phi < -180) target += 360;
-    }
-    s.focusTarget = clamp(target);
-    s.lastInteract = at;
-    s.interacted = true;
-  };
+
+  // マス目を列優先で埋め、足りない分は先頭から繰り返す（重複は支援技術からは隠す）
+  const slots = Array.from({ length: layout.cols * layout.rows }, (_, i) => {
+    const col = Math.floor(i / layout.rows);
+    const row = i % layout.rows;
+    return { slug: gallery.slugs[i % count], col, row, duplicate: i >= count };
+  });
 
   return (
     <section
@@ -156,56 +163,67 @@ export function GalleryLevel({
     >
       <h2 id={headingId} className="gallery-title" tabIndex={-1} data-pane-heading>
         {constellation.name}
-        <span className="gallery-count">{gallery.slugs.length}冊</span>
+        <span className="gallery-count">{count}冊</span>
       </h2>
 
-      <div
-        className="gallery-stage"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerEnd}
-        onPointerCancel={onPointerEnd}
-        onPointerLeave={onPointerEnd}
-        onClickCapture={onClickCapture}
-      >
-        <ul
-          ref={ringRef}
-          className="gallery-ring"
-          role="list"
-          style={{ '--card-w': `${CARD_W}px`, '--card-h': `${CARD_H}px`, '--radius': `${layout.radius}px` } as CSSProperties}
+      <div className="gallery-stage" ref={stageRef}>
+        <div
+          className="gallery-scroller"
+          ref={scrollerRef}
+          onWheel={onWheel}
+          onPointerDown={(e) => touched(e.timeStamp)}
+          onTouchMove={(e) => touched(e.timeStamp)}
         >
-          {gallery.slugs.map((slug, i) => {
-            const a = model.articles[slug];
-            const col = Math.floor(i / layout.rows);
-            const row = i % layout.rows;
-            const angle = angleOf(col, layout);
-            const rowY = layout.rows === 1 ? 0 : (row - 0.5) * (CARD_H + GAP);
-            return (
-              <li key={slug} className="gallery-slot" style={{ '--angle': `${angle}deg`, '--row-y': `${rowY}px` } as CSSProperties}>
-                <Link
-                  href={a.href}
-                  className={a.isNew ? 'card card-new' : 'card'}
-                  data-focus-id={slug}
-                  data-stagger
-                  draggable={false}
-                  onFocus={(e) => focusCard(angle, e.timeStamp)}
-                  onNavigate={(e) => {
-                    e.preventDefault();
-                    onSelect(slug);
-                  }}
+          <div className="gallery-track" style={{ width: `${Math.round(layout.circumference * PERIODS)}px` }} aria-hidden="true" />
+          <ul
+            ref={ringRef}
+            className="gallery-ring"
+            role="list"
+            style={{ '--cell': `${CELL}px`, '--radius': `${layout.radius}px` } as CSSProperties}
+          >
+            {slots.map(({ slug, col, row, duplicate }, i) => {
+              const a = model.articles[slug];
+              const angle = col * layout.step;
+              const rowY = (row - (layout.rows - 1) / 2) * (CELL + GAP);
+              const tilt = layout.rows === 1 ? 0 : -(row - (layout.rows - 1) / 2) * ROW_TILT_DEG;
+              const h = hashOf(slug);
+              const shape = SHAPES[h % SHAPES.length];
+              const tone = TONES[(h >>> 3) % TONES.length];
+              return (
+                <li
+                  key={`${slug}-${i}`}
+                  className="gallery-slot"
+                  style={{ '--angle': `${angle}deg`, '--row-y': `${rowY}px`, '--tilt': `${tilt}deg` } as CSSProperties}
+                  aria-hidden={duplicate || undefined}
                 >
-                  <Motif icon={constellation.icon} className="card-motif" />
-                  <span className="card-title">{a.title}</span>
-                  <span className="card-desc">{a.description}</span>
-                  <span className="card-meta">
-                    {a.parkIds.map((id) => PARK_NAMES[id] ?? id).join('・')}
-                    {a.parkIds.length > 0 && ' ・ '}約{a.readingMinutes}分
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                  <Link
+                    href={a.href}
+                    className={`card ${shape} ${tone}${a.isNew ? ' card-new' : ''}`}
+                    data-slug={slug}
+                    data-focus-id={duplicate ? undefined : slug}
+                    data-stagger
+                    tabIndex={duplicate ? -1 : undefined}
+                    draggable={false}
+                    onClick={(e) => e.currentTarget.setAttribute('data-selected', '')}
+                    onFocus={() => focusCard(angle)}
+                    onNavigate={(e) => {
+                      e.preventDefault();
+                      onSelect(slug);
+                    }}
+                  >
+                    <Motif icon={constellation.icon} className="card-motif" />
+                    <span className="card-title">{a.title}</span>
+                    <span className="card-desc">{a.description}</span>
+                    <span className="card-meta">
+                      {a.parkIds.map((id) => PARK_NAMES[id] ?? id).join('・')}
+                      {a.parkIds.length > 0 && ' ・ '}約{a.readingMinutes}分
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       </div>
     </section>
   );

@@ -259,9 +259,6 @@ html[data-explore-first] .constellation-edge {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
 }
 .gallery-title {
   flex-shrink: 0;
@@ -280,20 +277,33 @@ html[data-explore-first] .constellation-edge {
 .gallery-stage {
   flex: 1;
   min-height: 0;
-  display: grid;
-  place-items: center;
-  perspective: 1200px;
-  perspective-origin: 50% 50%;
-  cursor: grab;
+  position: relative;
 }
-.gallery-stage:active {
-  cursor: grabbing;
+/* 横スクロールの入れ物。見えない長いトラックの上に、輪を sticky で貼り付ける。
+   perspective は直下の子（輪）にしか効かないので、ここに置く */
+.gallery-scroller {
+  position: absolute;
+  inset: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  perspective: 1400px;
+  perspective-origin: 50% 50%;
+}
+.gallery-scroller::-webkit-scrollbar {
+  display: none;
+}
+.gallery-track {
+  height: 1px;
 }
 .gallery-ring {
-  --gallery-scale: 1;
-  position: relative;
-  width: 0;
-  height: 0;
+  position: sticky;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -301,23 +311,20 @@ html[data-explore-first] .constellation-edge {
   /* 輪はつねに回っているので、ここだけ will-change を常時付ける */
   will-change: transform;
 }
-@media (min-width: 768px) {
-  .gallery-ring {
-    --gallery-scale: 1.3;
-  }
-}
 .gallery-slot {
   position: absolute;
-  left: calc(var(--card-w) / -2);
-  top: calc(var(--card-h) / -2);
-  width: var(--card-w);
-  height: var(--card-h);
-  transform: rotateY(var(--angle)) translateZ(var(--radius)) translateY(var(--row-y));
+  left: calc(50% - var(--cell) / 2);
+  top: calc(50% - var(--cell) / 2);
+  width: var(--cell);
+  height: var(--cell);
+  display: grid;
+  place-items: center;
+  transform: rotateY(var(--angle)) translateZ(var(--radius)) translateY(var(--row-y)) rotateX(var(--tilt));
   transform-style: preserve-3d;
   backface-visibility: hidden;
 }
 
-/* カード（記事のプレビュー） */
+/* カード（記事のプレビュー）。形と色調は題から決定的に選ばれる */
 .card {
   box-sizing: border-box;
   position: relative;
@@ -325,16 +332,39 @@ html[data-explore-first] .constellation-edge {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 100%;
-  height: 100%;
   padding: 14px 14px 12px;
-  background: var(--c);
-  color: var(--sky-900);
   text-decoration: none;
-  border-radius: 6px;
+  border-radius: 10px;
   box-shadow: 0 1px 0 rgb(0 0 0 / 0.25);
   backface-visibility: hidden;
   transition: transform var(--dur-micro) ease-out;
+}
+.card-portrait {
+  width: 150px;
+  height: 190px;
+}
+.card-square {
+  width: 176px;
+  height: 176px;
+}
+.card-landscape {
+  width: 190px;
+  height: 144px;
+}
+.tone-pastel {
+  background: var(--c);
+  color: var(--sky-900);
+}
+.tone-paper {
+  background: var(--paper);
+  color: var(--sky-900);
+}
+.tone-ink {
+  background: var(--sky-500);
+  color: var(--paper);
+}
+.tone-ink .card-title {
+  color: var(--c);
 }
 .card:hover {
   transform: translateY(-4px);
@@ -354,8 +384,17 @@ html[data-explore-first] .constellation-edge {
   color: rgb(11 18 48 / 0.1);
   pointer-events: none;
 }
+.tone-ink .card-motif {
+  color: rgb(245 241 230 / 0.08);
+}
 .card-motif .motif-hole {
   fill: var(--c);
+}
+.tone-paper .card-motif .motif-hole {
+  fill: var(--paper);
+}
+.tone-ink .card-motif .motif-hole {
+  fill: var(--sky-500);
 }
 .card-title {
   font: 700 15px/1.4 var(--font-display);
@@ -364,18 +403,24 @@ html[data-explore-first] .constellation-edge {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.card-landscape .card-title {
+  -webkit-line-clamp: 2;
+}
 .card-desc {
   font: 400 12px/1.55 var(--font-sans);
-  color: rgb(11 18 48 / 0.78);
+  opacity: 0.8;
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.card-landscape .card-desc {
+  -webkit-line-clamp: 2;
+}
 .card-meta {
   margin-top: auto;
   font-size: 12px;
-  color: rgb(11 18 48 / 0.7);
+  opacity: 0.72;
 }
 .card-new::before {
   content: '';
@@ -385,11 +430,8 @@ html[data-explore-first] .constellation-edge {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--paper);
-  box-shadow: 0 0 0 2px rgb(11 18 48 / 0.15);
-}
-.card-new .card-title {
-  padding-left: 0;
+  background: currentColor;
+  opacity: 0.8;
 }
 
 /* ---- L2 手に取る ---- */
