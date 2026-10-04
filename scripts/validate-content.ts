@@ -1,13 +1,15 @@
 // コンテンツ（マスタ + content/articles/**）を検証する。
 // 実行: npm run content:validate
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, dirname, join, relative } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
+import { compile } from '@mdx-js/mdx';
 import matter from 'gray-matter';
 import { z } from 'zod';
+import { articleSchema, findArticleFiles } from '../content/loader';
+import { remarkPlugins } from '../content/mdx';
 import {
   categories,
   categorySchema,
-  createArticleSchema,
   places,
   placeSchema,
   series,
@@ -18,7 +20,6 @@ import {
 } from '../content';
 
 const ROOT = process.cwd();
-const ARTICLES_DIR = join(ROOT, 'content/articles');
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const errors: string[] = [];
@@ -87,31 +88,8 @@ for (const p of allPlaces) {
 
 // ---- 記事 ----
 
-/** slug.mdx と slug/index.mdx の両方を拾う */
-const findArticles = (dir: string): { slug: string; file: string }[] =>
-  readdirSync(dir).flatMap((name) => {
-    const full = join(dir, name);
-    if (statSync(full).isDirectory()) {
-      const index = join(full, 'index.mdx');
-      return existsSync(index) ? [{ slug: name, file: index }] : [];
-    }
-    return name.endsWith('.mdx') ? [{ slug: basename(name, '.mdx'), file: full }] : [];
-  });
-
-const articleSchema = createArticleSchema({
-  categoryIds: categories.map((c) => c.id),
-  tagIds: tags.map((t) => t.id),
-  placeIds: places.map((p) => p.id),
-  seriesIds: series.map((s) => s.id),
-});
-
 const main = async () => {
-  // MDX 系は ESM 専用パッケージのため動的 import
-  const { compile } = await import('@mdx-js/mdx');
-  const { default: remarkGfm } = await import('remark-gfm');
-  const { default: remarkBreaks } = await import('remark-breaks');
-
-  const articles = findArticles(ARTICLES_DIR);
+  const articles = findArticleFiles();
   const slugs = new Map<string, string>();
   const legacyIds = new Map<number, string>();
   const seriesOrders = new Map<string, string>();
@@ -155,7 +133,7 @@ const main = async () => {
     }
 
     try {
-      await compile(content, { remarkPlugins: [remarkGfm, remarkBreaks] });
+      await compile(content, { remarkPlugins });
     } catch (e) {
       err(where, `MDX のコンパイルに失敗しました: ${(e as Error).message}`);
     }
@@ -181,7 +159,4 @@ const main = async () => {
   console.log(`✓ 記事 ${articles.length} 件 / 場所 ${places.length} 件 / タグ ${tags.length} 件 を検証しました`);
 };
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+await main();

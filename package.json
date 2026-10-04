@@ -1,60 +1,37 @@
 {
-  "name": "disney_quiz",
+  "name": "disney-trivia",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://kanarunrun17.github.io/disney_quiz/",
-  "dependencies": {
-    "@testing-library/dom": "^10.4.1",
-    "@testing-library/jest-dom": "^6.8.0",
-    "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^13.5.0",
-    "@types/jest": "^27.5.2",
-    "@types/node": "^16.18.126",
-    "@types/react": "^19.1.13",
-    "@types/react-dom": "^19.1.9",
-    "@types/react-router-dom": "^5.3.3",
-    "bootstrap": "^5.3.8",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "react-router-dom": "^7.9.1",
-    "react-scripts": "5.0.1",
-    "typescript": "^4.9.5",
-    "web-vitals": "^2.1.4"
-  },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d build",
+    "dev": "next dev",
+    "prebuild": "npm run content:validate",
+    "build": "next build",
+    "start": "npx serve out",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "content:validate": "tsx scripts/validate-content.ts"
   },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "devDependencies": {
+  "dependencies": {
     "@mdx-js/mdx": "^3.1.1",
-    "gh-pages": "^6.3.0",
     "gray-matter": "^4.0.3",
+    "next": "^16.3.8",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
-    "tsx": "^4.23.15",
     "zod": "^4.6.5"
-  }
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/mdx": "^2.0.14",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.8",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  },
+  "type": "module"
 }
