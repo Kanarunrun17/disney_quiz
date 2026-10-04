@@ -26,6 +26,59 @@
   }
 }
 
+/*
+ * 探索ホーム（夜のテーマ）のトークン。ホームの wrapper に .theme-night を付けて使う。
+ * 既存の light/dark トークンは記事ページ用で、ここでは触らない。
+ */
+:root {
+  --sky-900: #0b1230;
+  --sky-700: #151e4a;
+  --sky-500: #1c2757;
+  --paper: #f5f1e6;
+  --sky-muted: #aeb5d6;
+  --sky-muted-dim: #8a93bc;
+
+  /* カテゴリ色（夜空の上でも、上に ink を乗せても 9.9:1 以上）。content/masters/categories.ts の color と一致させる */
+  --cat-attraction: #ffb4a2;
+  --cat-show-parade: #ffe08a;
+  --cat-character: #f8a5cf;
+  --cat-architecture: #9ee6cf;
+  --cat-film: #8ed0ff;
+  --cat-game: #c5b6fd;
+  --cat-food-goods: #ffc98b;
+  --cat-other: #c2cbea;
+
+  /* モーション */
+  --dur-micro: 120ms;
+  --dur-enter: 420ms;
+  --dur-exit: 280ms;
+  --ease-enter: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+  --ease-lift: cubic-bezier(0.34, 1.3, 0.64, 1);
+}
+
+.theme-night {
+  color-scheme: dark;
+  --background: var(--sky-900);
+  --surface: var(--sky-500);
+  --foreground: var(--paper);
+  --muted: var(--sky-muted);
+  --border: #2a335f;
+  --accent: var(--cat-film);
+  --accent-soft: var(--sky-700);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-micro: 0ms;
+    --dur-enter: 150ms;
+    --dur-exit: 150ms;
+    --ease-enter: linear;
+    --ease-exit: linear;
+    --ease-lift: linear;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
@@ -34,7 +87,22 @@
   --color-border: var(--border);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-sky-900: var(--sky-900);
+  --color-sky-700: var(--sky-700);
+  --color-sky-500: var(--sky-500);
+  --color-paper: var(--paper);
+  --color-sky-muted: var(--sky-muted);
+  --color-sky-muted-dim: var(--sky-muted-dim);
+  --color-cat-attraction: var(--cat-attraction);
+  --color-cat-show-parade: var(--cat-show-parade);
+  --color-cat-character: var(--cat-character);
+  --color-cat-architecture: var(--cat-architecture);
+  --color-cat-film: var(--cat-film);
+  --color-cat-game: var(--cat-game);
+  --color-cat-food-goods: var(--cat-food-goods);
+  --color-cat-other: var(--cat-other);
   --font-sans: system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic UI', sans-serif;
+  --font-display: var(--font-zen-maru), 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
 }
 
 body {

@@ -12,9 +12,11 @@ export const categorySchema = z.object({
   id,
   name: z.string().min(1),
   order: z.number().int(),
-  // デザイン側で決めるまでは未設定でよい
+  // 探索ホームで使う幾何形の symbol id と、夜空の上での色（globals.css の --cat-* と一致させる）
   icon: z.string().optional(),
-  color: z.string().optional(),
+  color: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
+  // 本棚の段の分け方を自動判定から上書きする（未指定なら自動）
+  shelfBy: z.enum(['park', 'series', 'tag']).optional(),
 });
 
 export const tagSchema = z.object({
