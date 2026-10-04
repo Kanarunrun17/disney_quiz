@@ -4,8 +4,10 @@ import { getArticles, getArticlesByCategory } from '@/lib/content';
 import { SITE_DESCRIPTION, SITE_NAME } from '@/lib/site';
 import { categories } from '@content';
 
+const LATEST_COUNT = 5;
+
 export default function HomePage() {
-  const articles = getArticles();
+  const articles = getArticles().slice(0, LATEST_COUNT);
   const usedCategories = categories.filter((c) => getArticlesByCategory(c.id).length > 0);
 
   return (
